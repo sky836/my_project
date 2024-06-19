@@ -80,7 +80,7 @@ class Exp_ST(Exp_Basic):
                 batch_y = batch_y.float().to(self.device)
 
                 # encoder - decoder
-                outputs = self.model(batch_x, batch_y[:, self.args.label_len:, :, :])
+                outputs = self.model(batch_x, batch_y[:, self.args.label_len:, :, :]).squueze(-1)
                 y = batch_y[:, self.args.label_len:, :, 0]
                 if vali_data.scale and self.args.inverse:
                     batch_size, pred_len, n_nodes = outputs.shape
@@ -117,10 +117,10 @@ class Exp_ST(Exp_Basic):
         vali_data, vali_loader = self._get_data(flag='val')
         test_data, test_loader = self._get_data(flag='test')
 
-        log_path = self.args.log_path + setting + '/'
-        if not os.path.exists(log_path):
-            os.makedirs(log_path)
-        # log_path = '/kaggle/working/'  # 使用kaggle跑实验时的路径
+        # log_path = self.args.log_path + setting + '/'
+        # if not os.path.exists(log_path):
+        #     os.makedirs(log_path)
+        log_path = '/kaggle/working/'  # 使用kaggle跑实验时的路径
         now = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
         log = os.path.join(log_path, f"{self.args.model}-{self.args.data}-{now}.log")
         log = open(log, "a")
