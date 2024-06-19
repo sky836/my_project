@@ -80,7 +80,7 @@ class Exp_ST(Exp_Basic):
                 batch_y = batch_y.float().to(self.device)
 
                 # encoder - decoder
-                outputs = self.model(batch_x, batch_y[:, self.args.label_len:, :, :]).squueze(-1)
+                outputs = self.model(batch_x).squueze(-1)
                 y = batch_y[:, self.args.label_len:, :, 0]
                 if vali_data.scale and self.args.inverse:
                     batch_size, pred_len, n_nodes = outputs.shape
