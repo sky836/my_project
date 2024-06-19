@@ -46,6 +46,8 @@ class Dataset_h5(Dataset):
         border1 = border1s[self.set_type]
         border2 = border2s[self.set_type]
 
+        data_y = df_raw.values
+
         if self.scale:
             train_data = df_raw[border1s[0]:border2s[0]].values
             self.scaler = StandardScaler(mean=train_data.mean(), std=train_data.std())
@@ -65,6 +67,8 @@ class Dataset_h5(Dataset):
             dow_tiled = np.tile(dow, [1, num_nodes, 1]).transpose((2, 1, 0))
             feature_list.append(dow_tiled)
             processed_data = np.concatenate(feature_list, axis=-1)
+            processed_data_y = [np.expand_dims(data_y, axis=-1), time_in_day, dow_tiled]
+            processed_data_y = np.concatenate(processed_data_y, axis=-1)
         elif self.time_to_feature == 1:
             feature_list = [np.expand_dims(data, axis=-1)]
             l, n = data.shape
@@ -77,6 +81,8 @@ class Dataset_h5(Dataset):
             stamp_tiled = np.tile(stamp, [n, 1, 1]).transpose((1, 0, 2))
             feature_list.append(stamp_tiled)
             processed_data = np.concatenate(feature_list, axis=-1)
+            processed_data_y = [np.expand_dims(data_y, axis=-1), stamp_tiled]
+            processed_data_y = np.concatenate(processed_data_y, axis=-1)
         else:
             processed_data = data
 
@@ -91,7 +97,7 @@ class Dataset_h5(Dataset):
         data_stamp = df_stamp.drop(columns=['date']).values
 
         self.data_x = processed_data[border1:border2]
-        self.data_y = processed_data[border1:border2]
+        self.data_y = processed_data_y[border1:border2]
         self.data_stamp = data_stamp
         print(self.data_x[:10, 0])
         print(self.data_x.shape)
@@ -111,7 +117,7 @@ class Dataset_h5(Dataset):
         return seq_x, seq_y, seq_x_mark, seq_y_mark
 
     def __len__(self):
-        return len(self.data_x) - self.seq_len - self.pred_len - self.label_len + 1
+        return len(self.data_x) - self.seq_len - self.pred_len + 1
 
     def inverse_transform(self, data):
         return self.scaler.inverse_transform(data)

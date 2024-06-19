@@ -86,8 +86,7 @@ class Exp_ST(Exp_Basic):
                     batch_size, pred_len, n_nodes = outputs.shape
                     outputs = vali_data.inverse_transform(outputs.reshape(-1, n_nodes)).reshape(batch_size,
                                                                                                  pred_len, n_nodes)
-                    y = vali_data.inverse_transform(y.reshape(-1, n_nodes)).reshape(batch_size,
-                                                                                     pred_len, n_nodes)
+
                 loss = criterion(outputs, y, 0.0)
                 total_loss.append(loss.item())
 
@@ -190,22 +189,15 @@ class Exp_ST(Exp_Basic):
                     batch_size, pred_len, n_nodes = outputs.shape
                     outputs = train_data.inverse_transform(outputs.reshape(-1, n_nodes)).reshape(batch_size,
                                                                                                  pred_len, n_nodes)
-                    y = train_data.inverse_transform(y.reshape(-1, n_nodes)).reshape(batch_size,
-                                                                                     pred_len, n_nodes)
 
                 loss = criterion(outputs, y, 0.0)
                 train_loss.append(loss.item())
 
-                outputs = outputs.detach().cpu().numpy()
-                y = y.detach().cpu().numpy()
-
                 if (i + 1) % 100 == 0:
-                    mae, mse, rmse, mape, mspe = metric(outputs, y)
-                    print_log(log, "\tepoch: {1} | iters: {0} | loss: {2:.7f} | mae: {3:.7f} | rmse: {4:.7f} | mape: {5:.7f}".
-                          format(i + 1, epoch + 1, loss.item(), mae, rmse, mape))
                     speed = (time.time() - time_now) / iter_count
                     left_time = speed * ((self.args.train_epochs - epoch) * train_steps - i)
-                    print_log(log, '\tspeed: {:.4f}s/iter; left time: {:.4f}s'.format(speed, left_time))
+                    print_log(log, "\tepoch: {1} | iters: {0} | loss: {2:.7f} | speed: {3:.4f}s/iter | left time: {4:.4f}s".
+                              format(i + 1, epoch + 1, loss.item(), speed, left_time))
                     iter_count = 0
                     time_now = time.time()
 
@@ -222,18 +214,15 @@ class Exp_ST(Exp_Basic):
             vali_loss, vali_mae, vali_mse, vali_rmse, vali_mape, vali_mspe, _, _ = self.vali(vali_data, vali_loader, criterion)
             print_log(
                 log,
-                "Epoch: {0}, Steps: {1} | Train Loss: {2:.7f} Vali Loss: {3:.7f} Vali mae: {4:.7f} "
-                "Vali rmse: {5:.7f} Vali mape: {6:.7f}".
-                format(epoch + 1, train_steps, train_loss, vali_loss,vali_mae, vali_rmse, vali_mape)
+                "Epoch: {0}, Steps: {1} | Train Loss: {2:.7f} Vali Loss: {3:.7f}".
+                format(epoch + 1, train_steps, train_loss, vali_loss)
             )
             test_loss, test_mae, test_mse, test_rmse, test_mape, \
             test_mspe, test_preds, test_trues = self.vali(test_data, test_loader, criterion)
             print_log(
                 log,
-                "Epoch: {0}, Steps: {1} | Test Loss: {2:.7f} Test mae: {3:.7f} "
-                "Test rmse: {4:.7f} Test mape: {5:.7f}".
-                format(epoch + 1, train_steps, test_loss, test_mae,
-                       test_rmse, test_mape)
+                "Epoch: {0}, Steps: {1} | Test Loss: {2:.7f}".
+                format(epoch + 1, train_steps, test_loss)
             )
             _, pred_len, _ = test_preds.shape
             for i in range(pred_len):

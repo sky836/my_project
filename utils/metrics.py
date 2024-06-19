@@ -41,7 +41,7 @@ def MAE(preds, labels, null_val=np.nan):
 #     loss = torch.where(torch.isnan(loss), torch.zeros_like(loss), loss)
 #     return torch.mean(loss)
 
-def masked_mae(preds, labels, null_val=np.nan):
+def masked_mae(preds, labels, null_val=0.0):
     if np.isnan(null_val):
         mask = ~torch.isnan(labels)
     else:
