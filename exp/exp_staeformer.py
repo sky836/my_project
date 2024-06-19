@@ -80,7 +80,7 @@ class Exp_ST(Exp_Basic):
                 batch_y = batch_y.float().to(self.device)
 
                 # encoder - decoder
-                outputs = self.model(batch_x).squueze(-1)
+                outputs = self.model(batch_x).squeeze(-1)
                 y = batch_y[:, self.args.label_len:, :, 0]
                 if vali_data.scale and self.args.inverse:
                     batch_size, pred_len, n_nodes = outputs.shape
@@ -201,9 +201,8 @@ class Exp_ST(Exp_Basic):
 
                 if (i + 1) % 100 == 0:
                     mae, mse, rmse, mape, mspe = metric(outputs, y)
-                    print_log(log, "\tepoch: {1} iters: {0} | loss: {2:.7f} | mae: {3:.7f} | mse: {4:.7f} | "
-                                   "rmse: {5:.7f} | mape: {6:.7f} | mspe: {7:.7f}".
-                          format(i + 1, epoch + 1, loss.item(), mae, mse, rmse, mape, mspe))
+                    print_log(log, "\tepoch: {1} | iters: {0} | loss: {2:.7f} | mae: {3:.7f} | rmse: {4:.7f} | mape: {5:.7f}".
+                          format(i + 1, epoch + 1, loss.item(), mae, rmse, mape))
                     speed = (time.time() - time_now) / iter_count
                     left_time = speed * ((self.args.train_epochs - epoch) * train_steps - i)
                     print_log(log, '\tspeed: {:.4f}s/iter; left time: {:.4f}s'.format(speed, left_time))
@@ -224,18 +223,17 @@ class Exp_ST(Exp_Basic):
             print_log(
                 log,
                 "Epoch: {0}, Steps: {1} | Train Loss: {2:.7f} Vali Loss: {3:.7f} Vali mae: {4:.7f} "
-                "Vali mse: {5:.7f} Vali rmse: {6:.7f} Vali mape: {7:.7f} Vali mspe: {8:.7f}".
-                format(epoch + 1, train_steps, train_loss, vali_loss,
-                       vali_mae, vali_mse, vali_rmse, vali_mape, vali_mspe)
+                "Vali rmse: {5:.7f} Vali mape: {6:.7f}".
+                format(epoch + 1, train_steps, train_loss, vali_loss,vali_mae, vali_rmse, vali_mape)
             )
             test_loss, test_mae, test_mse, test_rmse, test_mape, \
             test_mspe, test_preds, test_trues = self.vali(test_data, test_loader, criterion)
             print_log(
                 log,
                 "Epoch: {0}, Steps: {1} | Test Loss: {2:.7f} Test mae: {3:.7f} "
-                "Test mse: {4:.7f} Test rmse: {5:.7f} Test mape: {6:.7f} Test mspe: {7:.7f}".
+                "Test rmse: {4:.7f} Test mape: {5:.7f}".
                 format(epoch + 1, train_steps, test_loss, test_mae,
-                       test_mse, test_rmse, test_mape, test_mspe)
+                       test_rmse, test_mape)
             )
             _, pred_len, _ = test_preds.shape
             for i in range(pred_len):
