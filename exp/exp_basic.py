@@ -15,7 +15,7 @@ class Exp_Basic(object):
             'SingleNodeGWNET':singleNodeGWNET,
             'STAEformer': STAEformer
         }
-        self.clip = None
+        self.clip = 5
         self.device = self._acquire_device()
         self.cfg = cfg
         self.model = self._build_model().to(self.device)
