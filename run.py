@@ -32,8 +32,8 @@ if __name__ == '__main__':
 
     # path to modify
     # 1. data and adj
-    parser.add_argument('--adj_path', type=str, default=r'/kaggle/input/traffic-data/datasets/METR-LA/adj_METR-LA.pkl', help='path of the adjmx')
-    parser.add_argument('--root_path', type=str, default='/kaggle/input/traffic-data/datasets/', help='root path of the data file')
+    parser.add_argument('--adj_path', type=str, default=r'/kaggle/input/traffic-datasets/datasets/METR-LA/adj_METR-LA.pkl', help='path of the adjmx')
+    parser.add_argument('--root_path', type=str, default='/kaggle/input/traffic-datasets/datasets/', help='root path of the data file')
     parser.add_argument('--data_path', type=str, default='METR-LA/METR-LA.h5', help='data file')
     # 2. model path
     parser.add_argument('--best_model_path', type=str, default='checkpoints/metr-la_el3/checkpoint.pth', help='the path of pretrain model')
