@@ -26,7 +26,6 @@ class FullAttention(nn.Module):
             attn_mask = attn_mask.unsqueeze(2).repeat(1, 1, self.n_heads, 1, 1).to(device)
         batch_size, n_nodes, q_len, _ = Q.shape
         _, _, k_len, _ = K.shape
-
         # [batch_size, n_nodes, q_len, d_keys*n_heads] => [batch_size, n_nodes, n_heads, q_len, d_keys]
         queries = self.query_projection(Q).view(batch_size, n_nodes, q_len, self.n_heads, -1).transpose(2, 3)
         keys = self.key_projection(K).view(batch_size, n_nodes, k_len, self.n_heads, -1).transpose(2, 3)
