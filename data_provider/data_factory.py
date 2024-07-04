@@ -1,4 +1,5 @@
 from torch.utils.data import DataLoader
+from torch.utils.data.distributed import DistributedSampler
 
 from data_provider.data_loader import Dataset_h5, Dataset_PEMS04
 
@@ -35,7 +36,9 @@ def data_provider(args, flag):
     data_loader = DataLoader(
         data_set,
         batch_size=batch_size,
-        shuffle=shuffle_flag,
+        shuffle=False,  # 设置了新的 sampler，参数 shuffle 要设置为 False
         num_workers=args.num_workers,
-        drop_last=drop_last)
+        drop_last=drop_last,
+        sampler=DistributedSampler(data_set)  # 这个 sampler 自动将数据分块后送个各个 GPU，它能避免数据重叠
+    )
     return data_set, data_loader

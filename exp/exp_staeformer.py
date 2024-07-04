@@ -4,7 +4,6 @@ import pickle
 import scipy.sparse as sp
 from torch.utils.tensorboard import SummaryWriter
 from torchinfo import summary
-from tqdm import tqdm
 
 from data_provider.data_factory import data_provider
 from exp.exp_basic import Exp_Basic
@@ -17,6 +16,8 @@ import os
 import time
 import warnings
 import numpy as np
+from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.distributed import init_process_group, destroy_process_group
 
 warnings.filterwarnings('ignore')
 
@@ -43,7 +44,8 @@ class Exp_ST(Exp_Basic):
         if self.args.use_multi_gpu and self.args.use_gpu:
             # nn.DataParallel: 这是 PyTorch 中的一个模块，用于在多个 GPU 上并行地运行模型。
             # 它将输入模型封装在一个新的 DataParallel 模型中。
-            model = nn.DataParallel(model, device_ids=self.args.device_ids)
+            model = DDP(model, device_ids=self.device)
+            self.local_rank = os.environ['LOCAL_RANK']
         return model
 
     def asym_adj(self, adj):
@@ -59,7 +61,8 @@ class Exp_ST(Exp_Basic):
         return data_set, data_loader
 
     def _select_optimizer(self):
-        model_optim = optim.Adam(self.model.parameters(), lr=self.args.learning_rate, weight_decay=self.args.weight_decay)
+        model_optim = optim.Adam(self.model.parameters(), lr=self.args.learning_rate,
+                                 weight_decay=self.args.weight_decay)
         return model_optim
 
     def _select_criterion(self):
@@ -85,7 +88,7 @@ class Exp_ST(Exp_Basic):
                 if vali_data.scale and self.args.inverse:
                     batch_size, pred_len, n_nodes = outputs.shape
                     outputs = vali_data.inverse_transform(outputs.reshape(-1, n_nodes)).reshape(batch_size,
-                                                                                                 pred_len, n_nodes)
+                                                                                                pred_len, n_nodes)
 
                 loss = criterion(outputs, y, 0.0)
                 total_loss.append(loss.item())
@@ -130,7 +133,7 @@ class Exp_ST(Exp_Basic):
         # if not os.path.exists(path):
         #     os.makedirs(path)
         # path = '/mnt/workspace/'  # 使用阿里天池跑代码的路径
-        path = '/kaggle/working/' # 使用kaggle跑实验时的路径
+        path = '/kaggle/working/'  # 使用kaggle跑实验时的路径
 
         time_now = time.time()
 
@@ -147,24 +150,26 @@ class Exp_ST(Exp_Basic):
 
         n_parameters = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
 
-        print_log(
-            log,
-            summary(
-                self.model,
-                [
-                    (self.args.batch_size, self.args.seq_len, self.args.num_nodes, 3)
-                ],
-                verbose=0,  # avoid print twice
+        if self.local_rank == 0 or not self.args.use_multi_gpu:
+            print_log(
+                log,
+                summary(
+                    self.model,
+                    [
+                        (self.args.batch_size, self.args.seq_len, self.args.num_nodes, 3)
+                    ],
+                    verbose=0,  # avoid print twice
+                )
             )
-        )
-        print_log(log, 'number of params (M): %.2f' % (n_parameters / 1.e6))
+            print_log(log, 'number of params (M): %.2f' % (n_parameters / 1.e6))
 
         # tensorboard_path = os.path.join('./runs/{}/'.format(setting))
         # if not os.path.exists(tensorboard_path):
         #     os.makedirs(tensorboard_path)
         # tensorboard_path = '/mnt/workspace/'  # 使用阿里天池跑实验时的路径
         tensorboard_path = '/kaggle/working/'  # 使用kaggle跑实验时的路径
-        writer = SummaryWriter(log_dir=tensorboard_path)
+        if self.local_rank == 0 or not self.args.use_multi_gpu:
+            writer = SummaryWriter(log_dir=tensorboard_path)
 
         step, best_epoch = 0, -1
 
@@ -196,8 +201,10 @@ class Exp_ST(Exp_Basic):
                 if (i + 1) % 100 == 0:
                     speed = (time.time() - time_now) / iter_count
                     left_time = speed * ((self.args.train_epochs - epoch) * train_steps - i)
-                    print_log(log, "\tepoch: {1} | iters: {0} | loss: {2:.7f} | speed: {3:.4f}s/iter | left time: {4:.4f}s".
-                              format(i + 1, epoch + 1, loss.item(), speed, left_time))
+                    if self.local_rank == 0 or not self.args.use_multi_gpu:
+                        print_log(log,
+                                  "\tepoch: {1} | iters: {0} | loss: {2:.7f} | speed: {3:.4f}s/iter | left time: {4:.4f}s".
+                                  format(i + 1, epoch + 1, loss.item(), speed, left_time))
                     iter_count = 0
                     time_now = time.time()
 
@@ -206,40 +213,46 @@ class Exp_ST(Exp_Basic):
                     torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.clip)
                 model_optim.step()
 
-            print_log(log, "Epoch: {} cost time: {}".format(epoch + 1, time.time() - epoch_time))
-            lr = scheduler.get_last_lr()
-            print_log(log, "Epoch: {} lr: {}".format(epoch + 1, lr))
+            if self.local_rank == 0 or not self.args.use_multi_gpu:
+                print_log(log, "Epoch: {} cost time: {}".format(epoch + 1, time.time() - epoch_time))
+                lr = scheduler.get_last_lr()
+                print_log(log, "Epoch: {} lr: {}".format(epoch + 1, lr))
             scheduler.step()  # 学习率调整
             train_loss = np.average(train_loss)
-            vali_loss, vali_mae, vali_mse, vali_rmse, vali_mape, vali_mspe, _, _ = self.vali(vali_data, vali_loader, criterion)
-            print_log(
-                log,
-                "Epoch: {0}, Steps: {1} | Train Loss: {2:.7f} Vali Loss: {3:.7f}".
-                format(epoch + 1, train_steps, train_loss, vali_loss)
-            )
-            test_loss, test_mae, test_mse, test_rmse, test_mape, \
-            test_mspe, test_preds, test_trues = self.vali(test_data, test_loader, criterion)
-            print_log(
-                log,
-                "Epoch: {0}, Steps: {1} | Test Loss: {2:.7f}".
-                format(epoch + 1, train_steps, test_loss)
-            )
-            _, pred_len, _ = test_preds.shape
-            for i in range(pred_len):
-                mae, mse, rmse, mape, mspe = metric(test_preds[:, i, :], test_trues[:, i, :])
+            vali_loss, vali_mae, vali_mse, vali_rmse, vali_mape, vali_mspe, _, _ = self.vali(vali_data, vali_loader,
+                                                                                             criterion)
+            if self.local_rank == 0 or not self.args.use_multi_gpu:
                 print_log(
                     log,
-                    f'Evaluate model on test data for horizon {i}, Test MAE: {mae}, Test RMSE: {rmse}, Test MAPE: {mape}'
+                    "Epoch: {0}, Steps: {1} | Train Loss: {2:.7f} Vali Loss: {3:.7f}".
+                    format(epoch + 1, train_steps, train_loss, vali_loss)
                 )
+            test_loss, test_mae, test_mse, test_rmse, test_mape, \
+            test_mspe, test_preds, test_trues = self.vali(test_data, test_loader, criterion)
+            if self.local_rank == 0 or not self.args.use_multi_gpu:
+                print_log(
+                    log,
+                    "Epoch: {0}, Steps: {1} | Test Loss: {2:.7f}".
+                    format(epoch + 1, train_steps, test_loss)
+                )
+                _, pred_len, _ = test_preds.shape
+                for i in range(pred_len):
+                    mae, mse, rmse, mape, mspe = metric(test_preds[:, i, :], test_trues[:, i, :])
+                    print_log(
+                        log,
+                        f'Evaluate model on test data for horizon {i}, Test MAE: {mae}, Test RMSE: {rmse}, Test MAPE: {mape}'
+                    )
 
-            early_stopping(vali_loss, self.model, path, epoch)
-            if early_stopping.early_stop:
-                print_log(log, "Early stopping")
-                print_log(log, "best epoch: {0}".format(early_stopping.best_epoch))
-                break
+            early_stopping(vali_loss, self.model, path, epoch, self.local_rank)
+            if self.local_rank == 0 or not self.args.use_multi_gpu:
+                if early_stopping.early_stop:
+                    print_log(log, "Early stopping")
+                    print_log(log, "best epoch: {0}".format(early_stopping.best_epoch))
+                    break
 
-            writer.add_scalar(scalar_value=train_loss, global_step=step, tag='Loss/train')
-            writer.add_scalar(scalar_value=vali_loss, global_step=step, tag='Loss/valid')
+            if self.local_rank == 0 or not self.args.use_multi_gpu:
+                writer.add_scalar(scalar_value=train_loss, global_step=step, tag='Loss/train')
+                writer.add_scalar(scalar_value=vali_loss, global_step=step, tag='Loss/valid')
 
         best_model_path = path + 'checkpoint.pth'
         self.model.load_state_dict(torch.load(best_model_path))
@@ -347,4 +360,3 @@ class Exp_ST(Exp_Basic):
         np.save(folder_path + 'rmses.npy', rmses)
         np.save(folder_path + 'mapes.npy', mapes)
         np.save(folder_path + 'mspes.npy', mspes)
-
