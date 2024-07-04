@@ -1,5 +1,7 @@
 import os
 import torch
+from torch.nn.parallel import DistributedDataParallel as DDP
+
 from models import timeLinear, GWNET, taformerPredict, taformerPretrain, vanillaTransformer, singleNodeGWNET, STAEformer
 
 
@@ -20,6 +22,10 @@ class Exp_Basic(object):
         self.device = self._acquire_device()
         self.cfg = cfg
         self.model = self._build_model().to(self.device)
+        if self.args.use_multi_gpu and self.args.use_gpu:
+            # nn.DataParallel: 这是 PyTorch 中的一个模块，用于在多个 GPU 上并行地运行模型。
+            # 它将输入模型封装在一个新的 DataParallel 模型中。
+            self.model = DDP(self.model, device_ids=[self.device])
 
     def _build_model(self):
         raise NotImplementedError

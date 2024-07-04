@@ -16,7 +16,6 @@ import os
 import time
 import warnings
 import numpy as np
-from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.distributed import init_process_group, destroy_process_group
 
 warnings.filterwarnings('ignore')
@@ -41,10 +40,6 @@ class Exp_ST(Exp_Basic):
             msg = model.load_state_dict(torch.load(self.args.best_model_path), strict=False)
             print(msg)
 
-        if self.args.use_multi_gpu and self.args.use_gpu:
-            # nn.DataParallel: 这是 PyTorch 中的一个模块，用于在多个 GPU 上并行地运行模型。
-            # 它将输入模型封装在一个新的 DataParallel 模型中。
-            model = DDP(model, device_ids=[self.device])
         return model
 
     def asym_adj(self, adj):
