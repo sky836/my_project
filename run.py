@@ -2,6 +2,8 @@ import argparse
 from datetime import datetime
 
 import torch
+from torch.distributed import init_process_group, destroy_process_group
+
 from exp.exp_forcast import Exp_Forecast
 from exp.exp_staeformer import Exp_ST
 from exp.exp_timeLinear import Exp_TimeLinear
@@ -146,6 +148,9 @@ if __name__ == '__main__':
 
     if args.is_training:
         for ii in range(args.itr):
+            if args.use_multi_gpu:
+                init_process_group(backend="nccl")
+                torch.cuda.set_device(int(os.environ['LOCAL_RANK']))
             # setting record of experiments
             exp = Exp(args)
             setting = '{}_{}_sl{}_pl{}_el{}_dl{}_eh{}_{}_{}'.format(
@@ -165,6 +170,9 @@ if __name__ == '__main__':
                 print('>>>>>>>testing : {}<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'.format(setting))
                 exp.test(setting)
             torch.cuda.empty_cache()
+            if args.use_multi_gpu:
+                # 销毁进程池
+                destroy_process_group()
     else:
         ii = 0
         setting = '{}_{}_sl{}_pl{}_el{}_dl{}_eh{}_{}_{}'.format(
