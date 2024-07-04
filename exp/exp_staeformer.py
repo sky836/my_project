@@ -45,7 +45,6 @@ class Exp_ST(Exp_Basic):
             # nn.DataParallel: 这是 PyTorch 中的一个模块，用于在多个 GPU 上并行地运行模型。
             # 它将输入模型封装在一个新的 DataParallel 模型中。
             model = DDP(model, device_ids=self.device)
-            self.local_rank = os.environ['LOCAL_RANK']
         return model
 
     def asym_adj(self, adj):
@@ -115,6 +114,10 @@ class Exp_ST(Exp_Basic):
         return total_loss, maes, mses, rmses, mapes, mspes, preds, trues
 
     def train(self, setting):
+        if self.args.use_multi_gpu:
+            init_process_group(backend="nccl")
+            torch.cuda.set_device(int(os.environ['LOCAL_RANK']))
+
         train_data, train_loader = self._get_data(flag='train')
         vali_data, vali_loader = self._get_data(flag='val')
         test_data, test_loader = self._get_data(flag='test')
@@ -253,6 +256,10 @@ class Exp_ST(Exp_Basic):
             if self.local_rank == 0 or not self.args.use_multi_gpu:
                 writer.add_scalar(scalar_value=train_loss, global_step=step, tag='Loss/train')
                 writer.add_scalar(scalar_value=vali_loss, global_step=step, tag='Loss/valid')
+
+        if self.args.use_multi_gpu:
+            # 销毁进程池
+            destroy_process_group()
 
         best_model_path = path + 'checkpoint.pth'
         self.model.load_state_dict(torch.load(best_model_path))

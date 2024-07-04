@@ -31,8 +31,12 @@ class Exp_Basic(object):
             # 分隔的设备索引列表，例如："0,1,2" 表示程序将使用索引为 0、1 和 2 的GPU。
             os.environ["CUDA_VISIBLE_DEVICES"] = str(
                 self.args.gpu) if not self.args.use_multi_gpu else self.args.devices
-            device = torch.device('cuda:{}'.format(self.args.gpu))
-            print('Use GPU: cuda:{}'.format(self.args.gpu))
+
+            if not self.args.use_multi_gpu:
+                device = torch.device('cuda:{}'.format(self.args.gpu))
+            else:
+                device = os.environ['LOCAL_RANK']
+            print('Use GPU: cuda:{}'.format(device))
         else:
             device = torch.device('cpu')
             print('Use CPU')
