@@ -21,7 +21,10 @@ def data_provider(args, flag):
         batch_size = args.batch_size  # bsz=1 for evaluation
         freq = args.freq
     else:
-        shuffle_flag = True
+        if not args.use_multi_gpu:
+            shuffle_flag = True
+        else:
+            shuffle_flag = False
         drop_last = True
         batch_size = args.batch_size  # bsz for train and valid
         freq = args.freq
@@ -33,12 +36,21 @@ def data_provider(args, flag):
         size=[args.seq_len, args.label_len, args.pred_len],
         time_to_feature=time_to_feature
     )
-    data_loader = DataLoader(
-        data_set,
-        batch_size=batch_size,
-        shuffle=False,  # 设置了新的 sampler，参数 shuffle 要设置为 False
-        num_workers=args.num_workers,
-        drop_last=drop_last,
-        sampler=DistributedSampler(data_set)  # 这个 sampler 自动将数据分块后送个各个 GPU，它能避免数据重叠
-    )
+    if args.use_multi_gpu:
+        data_loader = DataLoader(
+            data_set,
+            batch_size=batch_size,
+            shuffle=shuffle_flag,  # 设置了新的 sampler，参数 shuffle 要设置为 False
+            num_workers=args.num_workers,
+            drop_last=drop_last,
+            sampler=DistributedSampler(data_set)  # 这个 sampler 自动将数据分块后送个各个 GPU，它能避免数据重叠
+        )
+    else:
+        data_loader = DataLoader(
+            data_set,
+            batch_size=batch_size,
+            shuffle=shuffle_flag,
+            num_workers=args.num_workers,
+            drop_last=drop_last
+        )
     return data_set, data_loader
