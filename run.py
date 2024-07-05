@@ -52,7 +52,7 @@ if __name__ == '__main__':
                         help='Adding time features to the data. options: [0, 1], 0 stands for 2 features. 1 stands for 4 features')
 
     # forecasting task
-    parser.add_argument('--seq_len', type=int, default=12*2, help='input sequence length')
+    parser.add_argument('--seq_len', type=int, default=12*12, help='input sequence length')
     parser.add_argument('--label_len', type=int, default=0, help='start token length')
     parser.add_argument('--pred_len', type=int, default=12, help='prediction sequence length')
     parser.add_argument('--inverse', action='store_true', help='inverse output data', default=True)
