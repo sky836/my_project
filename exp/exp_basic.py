@@ -39,7 +39,7 @@ class Exp_Basic(object):
                 self.args.gpu) if not self.args.use_multi_gpu else self.args.devices
 
             if not self.args.use_multi_gpu:
-                device = torch.device('cuda:{}'.format(self.args.gpu))
+                device = self.args.gpu
             else:
                 device = int(os.environ['LOCAL_RANK'])
             print('Use GPU: cuda:{}'.format(device))
