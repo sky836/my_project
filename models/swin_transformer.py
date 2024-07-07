@@ -520,11 +520,12 @@ class Model(nn.Module):
             x = layer(x)
 
         x = self.norm(x)  # B N L D
-        B, N, L, D = x.shape
-        x = x.view(B*N, L, D)
+        B, L, N, D = x.shape
+        x = x.transpose(1, 2)
+        x = x.reshape(B*N, L, D)
         x = self.avgpool(x.transpose(-1, -2))  # B*N D 1
         x = torch.flatten(x, 1)
-        x = x.view(B, N, -1)
+        x = x.reshape(B, N, -1)
         return x
 
     def forward(self, x):
