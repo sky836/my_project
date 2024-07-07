@@ -531,7 +531,7 @@ class Model(nn.Module):
     def forward(self, x):
         x = self.forward_features(x)
         x = self.head(x)
-        return x
+        return x.transpose(1, 2)
 
 
 if __name__ == '__main__':
