@@ -11,6 +11,8 @@ import torch.utils.checkpoint as checkpoint
 from timm.models.layers import DropPath, to_2tuple, trunc_normal_
 from torchinfo import summary
 
+from models.STAEformer import SelfAttentionLayer
+
 try:
     import os, sys
 
@@ -466,6 +468,14 @@ class Model(nn.Module):
             self.layers.append(layer)
 
         self.norm = norm_layer(self.end_features)
+
+        self.attn_layers_s = nn.ModuleList(
+            [
+                SelfAttentionLayer(self.end_features, self.end_features*4, 4, 0.1)
+                for _ in range(3)
+            ]
+        )
+
         self.avgpool = nn.AdaptiveAvgPool1d(1)
         self.head = nn.Linear(self.end_features, out_steps)
 
@@ -519,7 +529,9 @@ class Model(nn.Module):
         for layer in self.layers:
             x = layer(x)
 
-        x = self.norm(x)  # B N L D
+        x = self.norm(x)  # B L N D
+        for attn in self.attn_layers_s:
+            x = attn(x, dim=2)
         B, L, N, D = x.shape
         x = x.transpose(1, 2)
         x = x.reshape(B*N, L, D)
