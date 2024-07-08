@@ -476,8 +476,8 @@ class Model(nn.Module):
             ]
         )
 
-        self.avgpool = nn.AdaptiveAvgPool1d(1)
-        self.head = nn.Linear(self.end_features, out_steps)
+        # self.avgpool = nn.AdaptiveAvgPool1d(1)
+        self.head = nn.Linear(self.end_features * window_size, out_steps)
 
         self.apply(self._init_weights)
 
@@ -534,10 +534,11 @@ class Model(nn.Module):
             x = attn(x, dim=2)
         B, L, N, D = x.shape
         x = x.transpose(1, 2)
-        x = x.reshape(B*N, L, D)
-        x = self.avgpool(x.transpose(-1, -2))  # B*N D 1
-        x = torch.flatten(x, 1)
-        x = x.reshape(B, N, -1)
+        x = x.reshape(B, N, L*D)
+        # x = x.reshape(B*N, L, D)
+        # x = self.avgpool(x.transpose(-1, -2))  # B*N D 1
+        # x = torch.flatten(x, 1)
+        # x = x.reshape(B, N, -1)
         return x
 
     def forward(self, x):
