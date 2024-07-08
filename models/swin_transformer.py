@@ -403,9 +403,9 @@ class Model(nn.Module):
         fused_window_process (bool, optional): If True, use one kernel to fused window shift & window partition for acceleration, similar for the reversed part. Default: False
     """
 
-    def __init__(self, configs, num_nodes=207, patch_size=3, in_chans=3,tod_embedding_dim=6,steps_per_day=288,
-                 dow_embedding_dim=6,spatial_embedding_dim=0,adaptive_embedding_dim=18,
-                 embed_dim=6, depths=[2, 2, 6, 2], num_heads=[4, 8, 12, 24],in_steps=12*24,
+    def __init__(self, configs, num_nodes=207, patch_size=1, in_chans=3,tod_embedding_dim=24,steps_per_day=288,
+                 dow_embedding_dim=24,spatial_embedding_dim=0,adaptive_embedding_dim=80,
+                 embed_dim=24, depths=[3], num_heads=[4],in_steps=12,
                  window_size=12, mlp_ratio=4., qkv_bias=True, qk_scale=None,out_steps=12,
                  drop_rate=0., attn_drop_rate=0., drop_path_rate=0.1,input_dim=3,
                  norm_layer=nn.LayerNorm, patch_norm=True,
@@ -548,6 +548,6 @@ class Model(nn.Module):
 
 if __name__ == '__main__':
     configs = {}
-    model = Model(configs, num_nodes=207, in_steps=12*24, depths=[2, 2, 6, 2])
-    summary(model, [2, 12*24, 207, 3])
+    model = Model(configs, num_nodes=207, in_steps=12, depths=[3])
+    summary(model, [16, 12, 207, 3])
 

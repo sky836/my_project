@@ -277,7 +277,7 @@ class Model(nn.Module):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Taformer')
-    parser.add_argument('--adaptive_embedding_dim', type=int, default=24, help='')
+    parser.add_argument('--adaptive_embedding_dim', type=int, default=80, help='')
     parser.add_argument('--spatial_embedding_dim', type=int, default=0, help='')
     parser.add_argument('--dow_embedding_dim', type=int, default=24, help='')
     parser.add_argument('--tod_embedding_dim', type=int, default=24, help='')
@@ -290,9 +290,9 @@ if __name__ == "__main__":
     parser.add_argument('--use_mixed_proj', type=bool, default=True, help='')
     parser.add_argument('--n_heads', type=int, default=4, help='num of heads')
     parser.add_argument('--dropout', type=float, default=0.1, help='dropout')
-    parser.add_argument('--seq_len', type=int, default=12*2, help='input sequence length')
+    parser.add_argument('--seq_len', type=int, default=12, help='input sequence length')
     parser.add_argument('--pred_len', type=int, default=12, help='prediction sequence length')
     parser.add_argument('--num_nodes', type=int, required=False, default=207, help='the nodes of dataset')
     args = parser.parse_args()
     model = Model(args)
-    summary(model, [1, 12*2, 207, 3])
+    summary(model, [16, 12, 207, 3])
