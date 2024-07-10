@@ -335,8 +335,8 @@ class Decoder_layer(nn.Module):
 
         y_target = self.cross_target(y_time, x_time, x_target)
 
-        for i in range(self.dec_layers):
-            y_target = self.self_attn_layers_s[i](y_target, y_target, y_target, dim=2)
+        # for i in range(self.dec_layers):
+        #     y_target = self.self_attn_layers_s[i](y_target, y_target, y_target, dim=2)
         #     y_target = self.gconvs[i](y_target, self.supports)
 
         return y_target
@@ -481,8 +481,8 @@ class Model(nn.Module):
             time_features, target_features = self.merge_attn_layers[i](time_features, target_features, dim=1)
             # target_features = self.gconvs[i](target_features, self.supports)
 
-        for i in range(self.num_layers):
-            target_features = self.self_attn_layers_s[i](target_features, target_features, target_features, dim=2)
+        # for i in range(self.num_layers):
+        #     target_features = self.self_attn_layers_s[i](target_features, target_features, target_features, dim=2)
             # target_features = self.gconvs[i](target_features, self.supports)
         # (batch_size, in_steps, num_nodes, model_dim)
         return time_features, target_features
