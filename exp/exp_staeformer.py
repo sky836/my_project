@@ -25,13 +25,13 @@ class Exp_ST(Exp_Basic):
         super(Exp_ST, self).__init__(args)
 
     def _build_model(self):
-        # 读取邻接矩阵
-        with open(self.args.adj_path, 'rb') as f:
-            pickle_data = pickle.load(f, encoding="latin1")
-        adj_mx = pickle_data[2]
-        adj = [self.asym_adj(adj_mx), self.asym_adj(np.transpose(adj_mx))]
-        # num_nodes = len(pickle_data[0])
-        supports = [torch.tensor(i).to(self.device) for i in adj]
+        # # 读取邻接矩阵
+        # with open(self.args.adj_path, 'rb') as f:
+        #     pickle_data = pickle.load(f, encoding="latin1")
+        # adj_mx = pickle_data[2]
+        # adj = [self.asym_adj(adj_mx), self.asym_adj(np.transpose(adj_mx))]
+        # # num_nodes = len(pickle_data[0])
+        # supports = [torch.tensor(i).to(self.device) for i in adj]
         # .float(): 将模型的参数和张量转换为浮点数类型
         model = self.model_dict[self.args.model].Model(self.args).float()
 
@@ -59,7 +59,7 @@ class Exp_ST(Exp_Basic):
         return model_optim
 
     def _select_criterion(self):
-        if self.args.data in ("METR-LA", "PEMS-BAY"):
+        if self.args.data in ("METR-LA", "PEMS-BAY", 'PEMS08'):
             criterion = masked_mae
         else:
             criterion = nn.HuberLoss()
@@ -76,7 +76,7 @@ class Exp_ST(Exp_Basic):
                 batch_y = batch_y.float().to(self.device)
 
                 # encoder - decoder
-                outputs = self.model(batch_x).squeeze(-1)
+                outputs = self.model(batch_x, batch_y).squeeze(-1)
                 y = batch_y[:, self.args.label_len:, :, 0]
                 if vali_data.scale and self.args.inverse:
                     batch_size, pred_len, n_nodes = outputs.shape
@@ -149,7 +149,8 @@ class Exp_ST(Exp_Basic):
                 summary(
                     self.model,
                     [
-                        (self.args.batch_size, self.args.seq_len, self.args.num_nodes, 3)
+                        (self.args.batch_size, self.args.seq_len, self.args.num_nodes, 3),
+                        (self.args.batch_size, self.args.pred_len, self.args.num_nodes, 3)
                     ],
                     verbose=0,  # avoid print twice
                 )
@@ -180,7 +181,7 @@ class Exp_ST(Exp_Basic):
                 batch_x = batch_x.float().to(self.device)
                 batch_y = batch_y.float().to(self.device)
 
-                outputs = self.model(batch_x).squeeze(-1)
+                outputs = self.model(batch_x, batch_y).squeeze(-1)
                 y = batch_y[:, self.args.label_len:, :, 0]
 
                 if train_data.scale and self.args.inverse:

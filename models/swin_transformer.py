@@ -490,7 +490,7 @@ class Model(nn.Module):
             nn.init.constant_(m.bias, 0)
             nn.init.constant_(m.weight, 1.0)
 
-    def forward_features(self, x):
+    def encoding(self, x):
         # x: (batch_size, in_steps, num_nodes, input_dim+tod+dow=3)
         batch_size = x.shape[0]
 
@@ -503,28 +503,34 @@ class Model(nn.Module):
         x = self.patch_embed(x)  # (batch_size, n_patches, num_nodes, input_embedding_dim)
         patch_size = self.patch_embed.patch_size
         num_patches = self.patch_embed.num_patches
-        features = [x]
+        target_features = [x]
+        time_features = []
         if self.tod_embedding_dim > 0:
             tod_emb = self.tod_embedding(
                 (tod * self.steps_per_day).long()
             )  # (batch_size, in_steps, num_nodes, tod_embedding_dim)
-            features.append(tod_emb[:, ::patch_size])
+            time_features.append(tod_emb[:, ::patch_size])
         if self.dow_embedding_dim > 0:
             dow_emb = self.dow_embedding(
                 dow.long()
             )  # (batch_size, in_steps, num_nodes, dow_embedding_dim)
-            features.append(dow_emb[:, ::patch_size])
+            time_features.append(dow_emb[:, ::patch_size])
         if self.spatial_embedding_dim > 0:
             spatial_emb = self.node_emb.expand(
                 batch_size, num_patches, *self.node_emb.shape
             )
-            features.append(spatial_emb)
+            target_features.append(spatial_emb)
         if self.adaptive_embedding_dim > 0:
             adp_emb = self.adaptive_embedding.expand(
                 size=(batch_size, *self.adaptive_embedding.shape)
             )
-            features.append(adp_emb)
-        x = torch.cat(features, dim=-1)  # (batch_size, num_patches, num_nodes, model_dim)
+            target_features.append(adp_emb)
+        target_features = torch.cat(target_features, dim=-1)  # # (batch_size, num_patches, num_nodes, model_dim)
+        time_features = torch.cat(time_features, dim=-1)  # # (batch_size, num_patches, num_nodes, model_dim)
+
+    def forward_features(self, x):
+        # x: (batch_size, in_steps, num_nodes, input_dim+tod+dow=3)
+        self.encoding(x)
 
         for layer in self.layers:
             x = layer(x)

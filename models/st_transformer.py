@@ -4,6 +4,8 @@ import torch
 from torchinfo import summary
 import torch.nn.functional as F
 
+from models.swin_transformer import PatchEmbed
+
 
 class nconv(nn.Module):
     def __init__(self):
@@ -276,10 +278,10 @@ class CrossAttentionLayer(nn.Module):
 
     def forward(self, y_time, x_time, x_target):
         y_time, x_time, x_target = y_time.transpose(1, -2), x_time.transpose(1, -2), x_target.transpose(1, -2)
-        residual_y, residual_x, residual_target = y_time, x_time, x_target
+        residual_y, residual_x = y_time, x_time
         y_target, cross_attn_no_softmax, _ = self.crossAtten(y_time, x_time, x_target)
         y_target = self.dropout(y_target)
-        y_target = self.ln(y_target + residual_target)
+        y_target = self.ln(y_target)
 
         y_target = self.fc(y_target)
         y_target = y_target.transpose(1, -2)
@@ -310,20 +312,20 @@ class Decoder_layer(nn.Module):
         self.cross_target = CrossAttentionLayer(time_dim, target_dim, feed_forward_dim, num_heads, dropout)
 
         # GCN special
-        self.supports = supports
-        self.supports_len = supports_len
-        self.gconvs = nn.ModuleList(
-            [
-                gcn(self.target_dim, self.target_dim, dropout, support_len=self.supports_len)
-                for _ in range(dec_layers)
-            ]
-        )
-        # self.self_attn_layers_s = nn.ModuleList(
+        # self.supports = supports
+        # self.supports_len = supports_len
+        # self.gconvs = nn.ModuleList(
         #     [
-        #         SelfAttentionLayer(target_dim, feed_forward_dim, num_heads, dropout)
+        #         gcn(self.target_dim, self.target_dim, dropout, support_len=self.supports_len)
         #         for _ in range(dec_layers)
         #     ]
         # )
+        self.self_attn_layers_s = nn.ModuleList(
+            [
+                SelfAttentionLayer(target_dim, feed_forward_dim, num_heads, dropout)
+                for _ in range(dec_layers)
+            ]
+        )
 
     def forward(self, y_time, x_time, x_target):
         # y_time: (batch_size, in_steps, num_nodes, d_model)
@@ -333,99 +335,82 @@ class Decoder_layer(nn.Module):
 
         y_target = self.cross_target(y_time, x_time, x_target)
 
-        # for i in range(self.dec_layers):
-        #     # y_target = self.self_attn_layers_s[i](y_target, y_target, y_target, dim=2)
+        for i in range(self.dec_layers):
+            y_target = self.self_attn_layers_s[i](y_target, y_target, y_target, dim=2)
         #     y_target = self.gconvs[i](y_target, self.supports)
 
         return y_target
 
 
-class ST_Transformer(nn.Module):
-    def __init__(
-        self,
-        num_nodes,
-        in_steps=12,
-        out_steps=12,
-        steps_per_day=288,
-        input_dim=3,
-        output_dim=1,
-        input_embedding_dim=24,
-        tod_embedding_dim=24,
-        dow_embedding_dim=24,
-        spatial_embedding_dim=0,
-        adaptive_embedding_dim=80,
-        feed_forward_dim=256,
-        num_heads=4,
-        num_layers=3,
-        dec_layers=3,
-        dropout=0.1,
-        use_mixed_proj=True,
-        supports=None
-    ):
+class Model(nn.Module):
+    def __init__(self, configs, supports=None):
         super().__init__()
-
-        self.num_nodes = num_nodes
-        self.in_steps = in_steps
-        self.out_steps = out_steps
-        self.steps_per_day = steps_per_day
-        self.input_dim = input_dim
-        self.output_dim = output_dim
-        self.input_embedding_dim = input_embedding_dim
-        self.tod_embedding_dim = tod_embedding_dim
-        self.dow_embedding_dim = dow_embedding_dim
-        self.spatial_embedding_dim = spatial_embedding_dim
-        self.adaptive_embedding_dim = adaptive_embedding_dim
+        self.num_nodes = configs.num_nodes
+        self.in_steps = configs.seq_len
+        self.out_steps = configs.pred_len
+        self.steps_per_day = configs.steps_per_day
+        self.input_dim = configs.input_dim
+        self.output_dim = configs.output_dim
+        self.input_embedding_dim = configs.input_embedding_dim
+        self.tod_embedding_dim = configs.tod_embedding_dim
+        self.dow_embedding_dim = configs.dow_embedding_dim
+        self.spatial_embedding_dim = configs.spatial_embedding_dim
+        self.adaptive_embedding_dim = configs.adaptive_embedding_dim
+        self.feed_forward_dim = configs.feed_forward_dim
         self.model_dim = (
-            input_embedding_dim
-            + tod_embedding_dim
-            + dow_embedding_dim
-            + spatial_embedding_dim
-            + adaptive_embedding_dim
+            configs.input_embedding_dim
+            + configs.tod_embedding_dim
+            + configs.dow_embedding_dim
+            + configs.spatial_embedding_dim
+            + configs.adaptive_embedding_dim
         )
-        self.time_dim = (tod_embedding_dim + dow_embedding_dim)
-        self.target_dim = (input_embedding_dim + adaptive_embedding_dim)
-        self.num_heads = num_heads
-        self.num_layers = num_layers
-        self.dec_layers = dec_layers
-        self.use_mixed_proj = use_mixed_proj
+        self.time_dim = (configs.tod_embedding_dim + configs.dow_embedding_dim)
+        self.target_dim = (configs.input_embedding_dim + configs.adaptive_embedding_dim)
+        self.num_heads = configs.n_heads
+        self.num_layers = configs.num_layers
+        self.dec_layers = configs.d_layers
+        self.use_mixed_proj = configs.use_mixed_proj
+        self.patch_size = configs.patch_size
+        self.num_nodes = configs.num_nodes
         self.supports = supports
+        self.dropout = configs.dropout
         if self.supports is None:
             self.supports = []
 
-        self.input_proj = nn.Linear(input_dim, input_embedding_dim)
-        if tod_embedding_dim > 0:
-            self.tod_embedding = nn.Embedding(steps_per_day, tod_embedding_dim)
-        if dow_embedding_dim > 0:
-            self.dow_embedding = nn.Embedding(7, dow_embedding_dim)
-        if spatial_embedding_dim > 0:
+        # self.input_proj = nn.Linear(input_dim, input_embedding_dim)
+        self.patch_emb = PatchEmbed(seq_len=self.in_steps, patch_size=self.patch_size,
+                                    in_chans=self.input_dim, embed_dim=self.input_embedding_dim, norm_layer=nn.LayerNorm)
+        num_patches = self.patch_emb.num_patches
+        if self.tod_embedding_dim > 0:
+            self.tod_embedding = nn.Embedding(self.steps_per_day, self.tod_embedding_dim)
+        if self.dow_embedding_dim > 0:
+            self.dow_embedding = nn.Embedding(7, self.dow_embedding_dim)
+        if self.spatial_embedding_dim > 0:
             self.node_emb = nn.Parameter(
                 torch.empty(self.num_nodes, self.spatial_embedding_dim)
             )
             nn.init.xavier_uniform_(self.node_emb)
-        if adaptive_embedding_dim > 0:
+        if self.adaptive_embedding_dim > 0:
             self.adaptive_embedding = nn.init.xavier_uniform_(
-                nn.Parameter(torch.empty(in_steps, num_nodes, adaptive_embedding_dim))
+                nn.Parameter(torch.empty(num_patches, self.num_nodes, self.adaptive_embedding_dim))
             )
 
-        self.pos = nn.Parameter(torch.empty(in_steps, input_embedding_dim))
-        nn.init.xavier_uniform_(self.pos)
-
-        if use_mixed_proj:
-            # self.output_proj = nn.Linear(
-            #     in_steps * self.target_dim * 2, out_steps * output_dim
-            # )
+        if self.use_mixed_proj:
             self.output_proj = nn.Linear(
-                self.target_dim + self.spatial_embedding_dim, out_steps * output_dim
+                num_patches * self.target_dim * 2 + self.spatial_embedding_dim, self.out_steps * self.output_dim
             )
+            # self.output_proj = nn.Linear(
+            #     self.target_dim + self.spatial_embedding_dim, out_steps * output_dim
+            # )
         else:
-            self.temporal_proj = nn.Linear(in_steps, out_steps)
+            self.temporal_proj = nn.Linear(self.in_steps, self.out_steps)
             self.output_proj = nn.Linear(self.target_dim, self.output_dim)
 
         # ===================================encoding special=============================================
         self.merge_attn_layers = nn.ModuleList(
             [
-                MergeAttentionLayer(self.time_dim, self.target_dim, feed_forward_dim, num_heads, dropout)
-                for _ in range(num_layers)
+                MergeAttentionLayer(self.time_dim, self.target_dim, self.feed_forward_dim, self.num_heads, self.dropout)
+                for _ in range(self.num_layers)
             ]
         )
 
@@ -433,32 +418,28 @@ class ST_Transformer(nn.Module):
         self.supports_len = 0
         if supports is not None:
             self.supports_len += len(supports)
-        self.adp = nn.Parameter(torch.empty(num_nodes, num_nodes))
+        self.adp = nn.Parameter(torch.empty(self.num_nodes, self.num_nodes))
         nn.init.xavier_uniform_(self.adp)
         self.supports_len += 1
         self.supports = self.supports + [self.adp]
 
-        self.gconvs = nn.ModuleList(
-            [
-                gcn(self.target_dim, self.target_dim, dropout, support_len=self.supports_len)
-                for _ in range(num_layers)
-            ]
-        )
-
-        # self.self_attn_layers_s = nn.ModuleList(
+        # self.gconvs = nn.ModuleList(
         #     [
-        #         SelfAttentionLayer(self.target_dim, feed_forward_dim, num_heads, dropout)
+        #         gcn(self.target_dim, self.target_dim, dropout, support_len=self.supports_len)
         #         for _ in range(num_layers)
         #     ]
         # )
 
-        # ===================================decoding special=============================================
-        self.decoder = Decoder_layer(self.time_dim, self.target_dim, self.supports, self.supports_len, num_heads,
-                                     feed_forward_dim, dec_layers, dropout)
+        self.self_attn_layers_s = nn.ModuleList(
+            [
+                SelfAttentionLayer(self.target_dim, self.feed_forward_dim, self.num_heads, self.dropout)
+                for _ in range(self.num_layers)
+            ]
+        )
 
-        # ===================================embedding special=============================================
-        self.target_emb = nn.Linear(self.target_dim * 2 * in_steps, self.target_dim)
-        self.predict = nn.Sequential(*[MultiLayerPerceptron(self.target_dim + self.spatial_embedding_dim, self.target_dim + self.spatial_embedding_dim) for _ in range(self.num_layers)])
+        # ===================================decoding special=============================================
+        self.decoder = Decoder_layer(self.time_dim, self.target_dim, self.supports, self.supports_len, self.num_heads,
+                                     self.feed_forward_dim, self.dec_layers, self.dropout)
 
     def encoding(self, x):
         # x: (batch_size, in_steps, num_nodes, input_dim+tod+dow=3)
@@ -472,30 +453,22 @@ class ST_Transformer(nn.Module):
             dow = dow[..., 0]
         x = x[..., : self.input_dim]
 
-        # index = torch.arange(12).unsqueeze(0).unsqueeze(0)
-        # batch_size, in_steps, num_nodes, model_dim = x.shape
-        # device = x.device
-        # index = index.repeat(batch_size, num_nodes, 1).to(device)
-        # pos = self.pos[index].transpose(1, 2)
-
-        x = self.input_proj(x)  # (batch_size, in_steps, num_nodes, input_embedding_dim)
+        # x = self.input_proj(x)  # (batch_size, in_steps, num_nodes, input_embedding_dim)
+        x = self.patch_emb(x)
+        patch_size = self.patch_emb.patch_size
         target_features = [x]
         time_features = []
         if self.tod_embedding_dim > 0:
             tod_emb = self.tod_embedding(
                 (tod * self.steps_per_day).long()
             )  # (batch_size, in_steps, num_nodes, tod_embedding_dim)
-            time_features.append(tod_emb)
+            time_features.append(tod_emb[:, ::patch_size])
         if self.dow_embedding_dim > 0:
             dow_emb = self.dow_embedding(
                 dow.long()
             )  # (batch_size, in_steps, num_nodes, dow_embedding_dim)
-            time_features.append(dow_emb)
-        # if self.spatial_embedding_dim > 0:
-        #     spatial_emb = self.node_emb.expand(
-        #         batch_size, self.in_steps, *self.node_emb.shape
-        #     )
-        #     target_features.append(spatial_emb)
+            time_features.append(dow_emb[:, ::patch_size])
+
         if self.adaptive_embedding_dim > 0:
             adp_emb = self.adaptive_embedding.expand(
                 size=(batch_size, *self.adaptive_embedding.shape)
@@ -508,9 +481,9 @@ class ST_Transformer(nn.Module):
             time_features, target_features = self.merge_attn_layers[i](time_features, target_features, dim=1)
             # target_features = self.gconvs[i](target_features, self.supports)
 
-        # for i in range(self.num_layers):
-        # #     # target_features = self.self_attn_layers_s[i](target_features, target_features, target_features, dim=2)
-        #     target_features = self.gconvs[i](target_features, self.supports)
+        for i in range(self.num_layers):
+            target_features = self.self_attn_layers_s[i](target_features, target_features, target_features, dim=2)
+            # target_features = self.gconvs[i](target_features, self.supports)
         # (batch_size, in_steps, num_nodes, model_dim)
         return time_features, target_features
 
@@ -548,36 +521,21 @@ class ST_Transformer(nn.Module):
         target_features = torch.cat((target_features, y_target), dim=-1)  # (batch_size, in_steps, num_nodes, model_dim * 2)
 
         target_features = target_features.transpose(1, 2).reshape(batch_size, num_nodes, -1)
-        target_features = self.target_emb(target_features)
+        # target_features = self.target_emb(target_features)
 
         if self.spatial_embedding_dim > 0:
             node_emb = self.node_emb.unsqueeze(0).expand(batch_size, -1, -1)
-            target_features = torch.cat([target_features, node_emb], dim=-1)
+            target_features = torch.cat([target_features, node_emb], dim=-1)  # B, N, nP*dm*2+dN
 
-        target_features = self.predict(target_features)
+        # target_features = self.predict(target_features)
         out = target_features
 
-        if self.use_mixed_proj:
-            # out = target_features.transpose(1, 2)  # (batch_size, num_nodes, in_steps, model_dim)
-            # out = out.reshape(
-            #     batch_size, self.num_nodes, self.in_steps * self.target_dim * 2
-            # )
-            out = self.output_proj(out).view(
-                batch_size, self.num_nodes, self.out_steps, self.output_dim
-            )
-            out = out.transpose(1, 2)  # (batch_size, out_steps, num_nodes, output_dim)
-        else:
-            out = x.transpose(1, 3)  # (batch_size, model_dim, num_nodes, in_steps)
-            out = self.temporal_proj(
-                out
-            )  # (batch_size, model_dim, num_nodes, out_steps)
-            out = self.output_proj(
-                out.transpose(1, 3)
-            )  # (batch_size, out_steps, num_nodes, output_dim)
+        out = self.output_proj(out).view(batch_size, self.num_nodes, self.out_steps, self.output_dim)
+        out = out.transpose(1, 2)  # (batch_size, out_steps, num_nodes, output_dim)
 
         return out
 
 
 if __name__ == "__main__":
-    model = ST_Transformer(207, 12, 12)
+    model = Model(207, 12, 12)
     summary(model, [(1, 12, 207, 3), (1, 12, 207, 3)])
