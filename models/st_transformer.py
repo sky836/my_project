@@ -320,12 +320,12 @@ class Decoder_layer(nn.Module):
         #         for _ in range(dec_layers)
         #     ]
         # )
-        self.self_attn_layers_s = nn.ModuleList(
-            [
-                SelfAttentionLayer(target_dim, feed_forward_dim, num_heads, dropout)
-                for _ in range(dec_layers)
-            ]
-        )
+        # self.self_attn_layers_s = nn.ModuleList(
+        #     [
+        #         SelfAttentionLayer(target_dim, feed_forward_dim, num_heads, dropout)
+        #         for _ in range(dec_layers)
+        #     ]
+        # )
 
     def forward(self, y_time, x_time, x_target):
         # y_time: (batch_size, in_steps, num_nodes, d_model)
@@ -407,12 +407,12 @@ class Model(nn.Module):
             self.output_proj = nn.Linear(self.target_dim, self.output_dim)
 
         # ===================================encoding special=============================================
-        self.merge_attn_layers = nn.ModuleList(
-            [
-                MergeAttentionLayer(self.time_dim, self.target_dim, self.feed_forward_dim, self.num_heads, self.dropout)
-                for _ in range(self.num_layers)
-            ]
-        )
+        # self.merge_attn_layers = nn.ModuleList(
+        #     [
+        #         MergeAttentionLayer(self.time_dim, self.target_dim, self.feed_forward_dim, self.num_heads, self.dropout)
+        #         for _ in range(self.num_layers)
+        #     ]
+        # )
 
         # GCN special
         self.supports_len = 0
