@@ -274,15 +274,14 @@ class Exp_ST(Exp_Basic):
                 batch_x = batch_x.float().to(self.device)
                 batch_y = batch_y.float().to(self.device)
 
-                outputs = self.model(batch_x, batch_y[:, self.args.label_len:, :, :])
+                outputs = self.model(batch_x, batch_y).squeeze(-1)
                 y = batch_y[:, self.args.label_len:, :, 0]
 
                 if test_data.scale and self.args.inverse:
                     batch_size, pred_len, n_nodes = outputs.shape
                     outputs = test_data.inverse_transform(outputs.reshape(-1, n_nodes)).reshape(batch_size,
                                                                                                 pred_len, n_nodes)
-                    y = test_data.inverse_transform(y.reshape(-1, n_nodes)).reshape(batch_size,
-                                                                                    pred_len, n_nodes)
+
                 outputs = outputs.detach().cpu().numpy()[:, :, :]
                 y = y.detach().cpu().numpy()[:, :, :]
                 mae, mse, rmse, mape, mspe = metric(outputs, y)
@@ -336,12 +335,6 @@ class Exp_ST(Exp_Basic):
 
         mae, mse, rmse, mape, mspe = metric(preds, trues)
         print('mse:{}, mae:{}'.format(mse, mae))
-        # f = open("result_forecast.txt", 'a')
-        # f.write(setting + "  \n")
-        # f.write('mse:{}, mae:{}'.format(mse, mae))
-        # f.write('\n')
-        # f.write('\n')
-        # f.close()
 
         np.save(folder_path + 'metrics.npy', np.array([mae, mse, rmse, mape, mspe]))
         np.save(folder_path + 'pred.npy', preds)
