@@ -67,11 +67,11 @@ if __name__ == '__main__':
 
     # model define
     parser.add_argument('--feed_forward_dim', type=int, default=256, help='')
-    parser.add_argument('--adaptive_embedding_dim', type=int, default=2, help='')
-    parser.add_argument('--spatial_embedding_dim', type=int, default=0, help='')
+    parser.add_argument('--adaptive_embedding_dim', type=int, default=0, help='')
+    parser.add_argument('--spatial_embedding_dim', type=int, default=24, help='')
     parser.add_argument('--dow_embedding_dim', type=int, default=24, help='')
     parser.add_argument('--tod_embedding_dim', type=int, default=24, help='')
-    parser.add_argument('--input_embedding_dim', type=int, default=22, help='')
+    parser.add_argument('--input_embedding_dim', type=int, default=24, help='')
     parser.add_argument('--input_dim', type=int, default=3, help='')
     parser.add_argument('--output_dim', type=int, default=1, help='')
     parser.add_argument('--steps_per_day', type=int, default=288, help='')
