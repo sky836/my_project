@@ -67,8 +67,8 @@ if __name__ == '__main__':
 
     # model define
     parser.add_argument('--feed_forward_dim', type=int, default=256, help='')
-    parser.add_argument('--adaptive_embedding_dim', type=int, default=80, help='')
-    parser.add_argument('--spatial_embedding_dim', type=int, default=24, help='')
+    parser.add_argument('--adaptive_embedding_dim', type=int, default=0, help='')
+    parser.add_argument('--spatial_embedding_dim', type=int, default=0, help='')
     parser.add_argument('--dow_embedding_dim', type=int, default=24, help='')
     parser.add_argument('--tod_embedding_dim', type=int, default=24, help='')
     parser.add_argument('--input_embedding_dim', type=int, default=24, help='')
@@ -99,7 +99,7 @@ if __name__ == '__main__':
     # optimization
     parser.add_argument('--num_workers', type=int, default=1, help='data loader num workers')
     parser.add_argument('--itr', type=int, default=1, help='experiments times')
-    parser.add_argument('--train_epochs', type=int, default=100, help='train epochs')
+    parser.add_argument('--train_epochs', type=int, default=200, help='train epochs')
     parser.add_argument('--batch_size', type=int, default=16, help='batch size of train input data')
     parser.add_argument('--patience', type=int, default=30, help='early stopping patience')
     parser.add_argument('--learning_rate', type=float, default=0.001, help='optimizer learning rate')
