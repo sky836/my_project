@@ -87,21 +87,19 @@ class Exp_ST(Exp_Basic):
                 total_loss.append(loss.item())
 
                 mae, mse, rmse, mape, mspe = metric(outputs, y)
-                maes.append(mae)
-                mses.append(mse)
-                rmses.append(rmse)
-                mapes.append(mape)
-                mspes.append(mspe)
+                maes.append(mae.item())
+                mses.append(mse.item())
+                rmses.append(rmse.item())
+                mapes.append(mape.item())
+                mspes.append(mspe.item())
                 preds.append(outputs)
                 trues.append(y)
 
         total_loss, maes, mses, rmses, mapes, mspes = np.average(total_loss), np.average(maes), \
                                                       np.average(mses), np.average(rmses), \
                                                       np.average(mapes), np.average(mspes)
-        preds = np.array(preds)
-        trues = np.array(trues)
-        _, _, pred_len, n_nodes = preds.shape
-        preds, trues = preds.reshape((-1, pred_len, n_nodes)), trues.reshape((-1, pred_len, n_nodes))
+        preds = torch.cat(preds, dim=0)
+        trues = torch.cat(trues, dim=0)
         self.model.train()
         return total_loss, maes, mses, rmses, mapes, mspes, preds, trues
 
@@ -134,7 +132,7 @@ class Exp_ST(Exp_Basic):
         model_optim = self._select_optimizer()
         scheduler = torch.optim.lr_scheduler.MultiStepLR(
             model_optim,
-            milestones=[20, 50, 120],
+            milestones=[20, 60],
             gamma=0.2
         )
         criterion = self._select_criterion()
@@ -280,16 +278,15 @@ class Exp_ST(Exp_Basic):
                     outputs = test_data.inverse_transform(outputs.reshape(-1, n_nodes)).reshape(batch_size,
                                                                                                 pred_len, n_nodes)
 
-
                 mae, mse, rmse, mape, mspe = metric(outputs, y)
                 print("\tmae: {0:.7f} | mse: {1:.7f} | rmse: {2:.7f} | mape: {3:.7f} | mspe: {4:.7f}".format(mae, mse,
                                                                                                              rmse, mape,
                                                                                                              mspe))
-                maes.append(mae)
-                mses.append(mse)
-                rmses.append(rmse)
-                mapes.append(mape)
-                mspes.append(mspe)
+                maes.append(mae.item())
+                mses.append(mse.item())
+                rmses.append(rmse.item())
+                mapes.append(mape.item())
+                mspes.append(mspe.item())
 
                 inputs = batch_x[:, :, :, 0].detach().cpu().numpy()
                 if test_data.scale and self.args.inverse:
@@ -301,28 +298,13 @@ class Exp_ST(Exp_Basic):
                 batch_y_mark = batch_y_mark.detach().cpu().numpy()
                 x_marks.append(batch_x_mark)
                 y_marks.append(batch_y_mark)
-                preds.append(outputs.astype(np.float32))
-                trues.append(y.astype(np.float32))
+                preds.append(outputs)
+                trues.append(y)
 
-        preds = np.array(preds).astype(np.float32)
-        trues = np.array(trues).astype(np.float32)
-        x_trues = np.array(x_trues).astype(np.float32)
-        x_marks = np.array(x_marks)
-        y_marks = np.array(y_marks)
-        maes = np.array(maes).astype(np.float32)
-        mses = np.array(mses).astype(np.float32)
-        rmses = np.array(rmses).astype(np.float32)
-        mspes = np.array(mspes).astype(np.float32)
-        mapes = np.array(mapes).astype(np.float32)
-        print('test shape:', preds.shape, trues.shape, x_trues.shape, x_marks.shape, y_marks.shape, maes.shape,
-              mses.shape, rmses.shape, mspes.shape, mapes.shape)
-        preds = preds.reshape(-1, preds.shape[-2], preds.shape[-1])
-        trues = trues.reshape(-1, trues.shape[-2], trues.shape[-1])
-        x_trues = x_trues.reshape(-1, x_trues.shape[-2], x_trues.shape[-1])
-        x_marks = x_marks.reshape(-1, x_marks.shape[-2], x_marks.shape[-1])
-        y_marks = y_marks.reshape(-1, y_marks.shape[-2], y_marks.shape[-1])
-        print('test shape:', preds.shape, trues.shape, x_trues.shape, x_marks.shape, y_marks.shape, maes.shape,
-              mses.shape, rmses.shape, mspes.shape, mapes.shape)
+        mae, mse, rmse, mape, mspe = np.average(maes), \
+                                          np.average(mses), np.average(rmses), \
+                                          np.average(mapes), np.average(mspes)
+        print('rmse:{:.7f}, mae:{:.7f}, mape:{:.7f}'.format(rmse, mae, mape))
 
         # result save
         folder_path = './test_results/' + setting + '/'
@@ -330,12 +312,27 @@ class Exp_ST(Exp_Basic):
             os.makedirs(folder_path)
         # folder_path = '/kaggle/working/'  # 使用kaggle跑代码时的输出路径
 
-        mae, mse, rmse, mape, mspe = metric(preds, trues)
-        print('mse:{}, mae:{}'.format(mse, mae))
+        preds = torch.cat(preds, dim=0)
+        trues = torch.cat(trues, dim=0)
+        x_trues = np.array(x_trues).astype(np.float32)
+        x_marks = np.array(x_marks)
+        y_marks = np.array(y_marks)
+        maes = np.array(maes)
+        mses = np.array(mses)
+        rmses = np.array(rmses)
+        mspes = np.array(mspes)
+        mapes = np.array(mapes)
+        print('test shape:', preds.shape, trues.shape, x_trues.shape, x_marks.shape, y_marks.shape, maes.shape,
+              mses.shape, rmses.shape, mspes.shape, mapes.shape)
+        x_trues = x_trues.reshape(-1, x_trues.shape[-2], x_trues.shape[-1])
+        x_marks = x_marks.reshape(-1, x_marks.shape[-2], x_marks.shape[-1])
+        y_marks = y_marks.reshape(-1, y_marks.shape[-2], y_marks.shape[-1])
+        print('test shape:', preds.shape, trues.shape, x_trues.shape, x_marks.shape, y_marks.shape, maes.shape,
+              mses.shape, rmses.shape, mspes.shape, mapes.shape)
 
         np.save(folder_path + 'metrics.npy', np.array([mae, mse, rmse, mape, mspe]))
-        np.save(folder_path + 'pred.npy', preds)
-        np.save(folder_path + 'true.npy', trues)
+        np.save(folder_path + 'pred.npy', preds.detach().cpu().numpy())
+        np.save(folder_path + 'true.npy', trues.detach().cpu().numpy())
         np.save(folder_path + 'x_trues.npy', x_trues)
         np.save(folder_path + 'x_marks.npy', x_marks)
         np.save(folder_path + 'y_marks.npy', y_marks)
