@@ -38,12 +38,12 @@ def MAPE(preds, labels, null_val: float = np.nan):
     null_val = 0.0
     # delete small values to avoid abnormal results
     # TODO: support multiple null values
-    labels = np.where(np.abs(labels) < 1e-4, np.zeros_like(labels), labels)
+    labels = torch.where(torch.abs(labels) < 1e-4, torch.zeros_like(labels), labels)
     if np.isnan(null_val):
-        mask = ~np.isnan(labels)
+        mask = ~torch.isnan(labels)
     else:
         eps = 5e-5
-        mask = ~np.isclose(labels, np.full_like(labels, fill_value=null_val), atol=eps, rtol=0.)
+        mask = ~torch.isclose(labels, torch.full_like(labels, fill_value=null_val), atol=eps, rtol=0.)
     mask = mask.float()
     mask /= torch.mean((mask))
     mask = torch.where(torch.isnan(mask), torch.zeros_like(mask), mask)
@@ -71,12 +71,12 @@ def MSPE(preds, labels, null_val: float = np.nan):
     null_val = 0.0
     # delete small values to avoid abnormal results
     # TODO: support multiple null values
-    labels = np.where(np.abs(labels) < 1e-4, np.zeros_like(labels), labels)
+    labels = torch.where(torch.abs(labels) < 1e-4, torch.zeros_like(labels), labels)
     if np.isnan(null_val):
-        mask = ~np.isnan(labels)
+        mask = ~torch.isnan(labels)
     else:
         eps = 5e-5
-        mask = ~np.isclose(labels, np.full_like(labels, fill_value=null_val), atol=eps, rtol=0.)
+        mask = ~torch.isclose(labels, torch.full_like(labels, fill_value=null_val), atol=eps, rtol=0.)
     mask = mask.float()
     mask /= torch.mean((mask))
     mask = torch.where(torch.isnan(mask), torch.zeros_like(mask), mask)
