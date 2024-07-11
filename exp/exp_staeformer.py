@@ -86,8 +86,6 @@ class Exp_ST(Exp_Basic):
                 loss = criterion(outputs, y, 0.0)
                 total_loss.append(loss.item())
 
-                outputs = outputs.detach().cpu().numpy()
-                y = y.detach().cpu().numpy()
                 mae, mse, rmse, mape, mspe = metric(outputs, y)
                 maes.append(mae)
                 mses.append(mse)
@@ -282,8 +280,7 @@ class Exp_ST(Exp_Basic):
                     outputs = test_data.inverse_transform(outputs.reshape(-1, n_nodes)).reshape(batch_size,
                                                                                                 pred_len, n_nodes)
 
-                outputs = outputs.detach().cpu().numpy()[:, :, :]
-                y = y.detach().cpu().numpy()[:, :, :]
+
                 mae, mse, rmse, mape, mspe = metric(outputs, y)
                 print("\tmae: {0:.7f} | mse: {1:.7f} | rmse: {2:.7f} | mape: {3:.7f} | mspe: {4:.7f}".format(mae, mse,
                                                                                                              rmse, mape,
