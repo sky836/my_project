@@ -67,7 +67,7 @@ if __name__ == '__main__':
 
     # model define
     parser.add_argument('--feed_forward_dim', type=int, default=256, help='')
-    parser.add_argument('--adaptive_embedding_dim', type=int, default=80, help='')
+    parser.add_argument('--adaptive_embedding_dim', type=int, default=0, help='')
     parser.add_argument('--spatial_embedding_dim', type=int, default=0, help='')
     parser.add_argument('--dow_embedding_dim', type=int, default=24, help='')
     parser.add_argument('--tod_embedding_dim', type=int, default=24, help='')
@@ -102,7 +102,7 @@ if __name__ == '__main__':
     parser.add_argument('--train_epochs', type=int, default=200, help='train epochs')
     parser.add_argument('--batch_size', type=int, default=16, help='batch size of train input data')
     parser.add_argument('--patience', type=int, default=30, help='early stopping patience')
-    parser.add_argument('--learning_rate', type=float, default=0.001, help='optimizer learning rate')
+    parser.add_argument('--learning_rate', type=float, default=0.005, help='optimizer learning rate')
     parser.add_argument('--weight_decay', type=float, default=0.0003, help='optimizer weight_decay')
     parser.add_argument('--des', type=str, default='Exp', help='exp description')
     parser.add_argument('--loss', type=str, default='MSE', help='loss function')

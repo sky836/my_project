@@ -136,8 +136,8 @@ class Exp_ST(Exp_Basic):
         model_optim = self._select_optimizer()
         scheduler = torch.optim.lr_scheduler.MultiStepLR(
             model_optim,
-            milestones=[20, 30],
-            gamma=0.1
+            milestones=[20, 50, 120],
+            gamma=0.2
         )
         criterion = self._select_criterion()
 
@@ -226,8 +226,8 @@ class Exp_ST(Exp_Basic):
             if self.device == 0:
                 print_log(
                     log,
-                    "Epoch: {0}, Steps: {1} | Test Loss: {2:.7f}".
-                    format(epoch + 1, train_steps, test_loss)
+                    "Epoch: {0}, Steps: {1} | Test Loss: {2:.7f} Test mae:{3:.7f} Test rmse:{4:.7f} Test mape: {5:.7f}".
+                    format(epoch + 1, train_steps, test_loss, test_mae, test_rmse, test_mape)
                 )
                 _, pred_len, _ = test_preds.shape
                 for i in range(pred_len):
