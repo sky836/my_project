@@ -133,7 +133,7 @@ class Exp_ST(Exp_Basic):
         scheduler = torch.optim.lr_scheduler.MultiStepLR(
             model_optim,
             milestones=[20, 30],
-            gamma=0.2
+            gamma=0.1
         )
         criterion = self._select_criterion()
 
