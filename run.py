@@ -35,15 +35,15 @@ if __name__ == '__main__':
     # path to modify
     # 1. data and adj
     parser.add_argument('--adj_path', type=str, default=r'datasets/PEMS08/adj.npy', help='path of the adjmx')
-    parser.add_argument('--root_path', type=str, default='/kaggle/input/d/skypeter/traffic-datasets/datasets/', help='root path of the data file')
-    parser.add_argument('--data_path', type=str, default='PEMS04/data.npz', help='data file')
+    parser.add_argument('--root_path', type=str, default='/kaggle/input/d/bosun8769123/traffic-datasets/datasets', help='root path of the data file')
+    parser.add_argument('--data_path', type=str, default='PEMS03/data.npz', help='data file')
     # 2. model path
     parser.add_argument('--best_model_path', type=str, default='checkpoints/metr-la_el3/checkpoint.pth', help='the path of pretrain model')
 
 
     # data loader
-    parser.add_argument('--data', type=str, required=False, default='PEMS04', help='dataset type')
-    parser.add_argument('--num_nodes', type=int, required=False, default=307, help='the nodes of dataset')
+    parser.add_argument('--data', type=str, required=False, default='PEMS03', help='dataset type')
+    parser.add_argument('--num_nodes', type=int, required=False, default=358, help='the nodes of dataset')
     parser.add_argument('--freq', type=str, default='t',
                         help='freq for time features encoding, options:[s:secondly, t:minutely, h:hourly, d:daily, b:business days, w:weekly, m:monthly], you can also use more detailed freq like 15min or 3h')
     parser.add_argument('--checkpoints', type=str, default='./checkpoints/', help='location of model checkpoints')
