@@ -67,7 +67,7 @@ if __name__ == '__main__':
 
     # model define
     parser.add_argument('--feed_forward_dim', type=int, default=256, help='')
-    parser.add_argument('--adaptive_embedding_dim', type=int, default=24, help='')
+    parser.add_argument('--adaptive_embedding_dim', type=int, default=80, help='')
     parser.add_argument('--spatial_embedding_dim', type=int, default=0, help='')
     parser.add_argument('--dow_embedding_dim', type=int, default=24, help='')
     parser.add_argument('--tod_embedding_dim', type=int, default=24, help='')
