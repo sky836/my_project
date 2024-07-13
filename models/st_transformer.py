@@ -380,7 +380,7 @@ class Model(nn.Module):
         # self.input_proj = nn.Linear(input_dim, input_embedding_dim)
         self.patch_emb = PatchEmbed(seq_len=self.in_steps, patch_size=self.patch_size,
                                     in_chans=self.input_dim, embed_dim=self.input_embedding_dim, norm_layer=nn.LayerNorm)
-        num_patches = self.patch_emb.num_patches
+        self.num_patches = self.patch_emb.num_patches
         if self.tod_embedding_dim > 0:
             self.tod_embedding = nn.Embedding(self.steps_per_day, self.tod_embedding_dim)
         if self.dow_embedding_dim > 0:
@@ -392,12 +392,12 @@ class Model(nn.Module):
             nn.init.xavier_uniform_(self.node_emb)
         if self.adaptive_embedding_dim > 0:
             self.adaptive_embedding = nn.init.xavier_uniform_(
-                nn.Parameter(torch.empty(num_patches, self.num_nodes, self.adaptive_embedding_dim))
+                nn.Parameter(torch.empty(self.num_patches, self.num_nodes, self.adaptive_embedding_dim))
             )
 
         if self.use_mixed_proj:
             self.output_proj = nn.Linear(
-                (num_patches + self.out_steps) * self.target_dim + self.spatial_embedding_dim, self.out_steps * self.output_dim
+                (self.num_patches + self.out_steps) * self.target_dim + self.spatial_embedding_dim, self.out_steps * self.output_dim
             )
             # self.output_proj = nn.Linear(
             #     self.target_dim + self.spatial_embedding_dim, out_steps * output_dim
@@ -518,12 +518,13 @@ class Model(nn.Module):
         batch_size, _, num_nodes, _ = x.shape
         time_features, target_features = self.encoding(x)
         y_target = self.decoding(time_features, target_features, y)
-        target_features = target_features.transpose(1, 2).reshape(batch_size, num_nodes, -1)
-        y_target = y_target.transpose(1, 2).reshape(batch_size, num_nodes, -1)
+        if self.num_patches != self.out_steps:
+            target_features = target_features.transpose(1, 2).reshape(batch_size, num_nodes, -1)
+            y_target = y_target.transpose(1, 2).reshape(batch_size, num_nodes, -1)
         target_features = torch.cat((target_features, y_target), dim=-1)  # (batch_size, in_steps, num_nodes, model_dim * 2)
 
-        # target_features = target_features.transpose(1, 2).reshape(batch_size, num_nodes, -1)
-        # target_features = self.target_emb(target_features)
+        if self.num_patches == self.out_steps:
+            target_features = target_features.transpose(1, 2).reshape(batch_size, num_nodes, -1)
 
         if self.spatial_embedding_dim > 0:
             node_emb = self.node_emb.unsqueeze(0).expand(batch_size, -1, -1)
