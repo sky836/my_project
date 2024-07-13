@@ -4,10 +4,12 @@ from torch.utils.data.distributed import DistributedSampler
 from data_provider.data_loader import Dataset_h5, Dataset_PEMS04, Dataset_PEMS08
 
 data_dict = {
-    'METR-LA': Dataset_h5,
-    'PEMS-BAY': Dataset_h5,
-    'PEMS04': Dataset_PEMS04,
-    'PEMS08': Dataset_PEMS08
+    'METRLA': Dataset_PEMS08,
+    'PEMSBAY': Dataset_PEMS08,
+    'PEMS04': Dataset_PEMS08,
+    'PEMS08': Dataset_PEMS08,
+    'PEMS03': Dataset_PEMS08,
+    'PEMS07': Dataset_PEMS08,
 }
 
 
