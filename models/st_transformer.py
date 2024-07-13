@@ -395,12 +395,12 @@ class Model(nn.Module):
                 nn.Parameter(torch.empty(num_patches, self.num_nodes, self.adaptive_embedding_dim))
             )
 
-        self.his_fc = nn.Linear(num_patches*self.target_dim, self.target_dim*2)
-        self.fu_fc = nn.Linear(self.out_steps * self.target_dim, self.target_dim)
+        # self.his_fc = nn.Linear(num_patches*self.target_dim, self.target_dim*2)
+        # self.fu_fc = nn.Linear(self.out_steps * self.target_dim, self.target_dim)
 
         if self.use_mixed_proj:
             self.output_proj = nn.Linear(
-                3 * self.target_dim + self.spatial_embedding_dim, self.out_steps * self.output_dim
+                (num_patches + self.out_steps) * self.target_dim + self.spatial_embedding_dim, self.out_steps * self.output_dim
             )
             # self.output_proj = nn.Linear(
             #     self.target_dim + self.spatial_embedding_dim, out_steps * output_dim
@@ -521,13 +521,11 @@ class Model(nn.Module):
         batch_size, _, num_nodes, _ = x.shape
         time_features, target_features = self.encoding(x)
         y_target = self.decoding(time_features, target_features, y)
-        target_features = target_features.transpose(1, 2).reshape(batch_size, num_nodes, -1)
-        y_target = y_target.transpose(1, 2).reshape(batch_size, num_nodes, -1)
-        target_features = self.his_fc(target_features)
-        y_target = self.fu_fc(y_target)
+        # target_features = target_features.transpose(1, 2).reshape(batch_size, num_nodes, -1)
+        # y_target = y_target.transpose(1, 2).reshape(batch_size, num_nodes, -1)
         target_features = torch.cat((target_features, y_target), dim=-1)  # (batch_size, in_steps, num_nodes, model_dim * 2)
 
-        # target_features = target_features.transpose(1, 2).reshape(batch_size, num_nodes, -1)
+        target_features = target_features.transpose(1, 2).reshape(batch_size, num_nodes, -1)
         # target_features = self.target_emb(target_features)
 
         if self.spatial_embedding_dim > 0:
