@@ -3,7 +3,8 @@ import os
 import numpy as np
 from matplotlib import pyplot as plt
 
-data = np.load(os.path.join(r'PEMS04/', "PEMS04.npz"))["data"].astype(np.float32)
+data_name = 'PEMS03'
+data = np.load(os.path.join(fr'{data_name}/', "data.npz"))["data"].astype(np.float32)
 x = data[..., 0]
 
 
@@ -20,6 +21,7 @@ def showTimeseries(timeSeries, time):
     plt.xticks(tick_positions[::24], time[::24], rotation=45)
     plt.xlabel('Time')
     plt.ylabel('Flow')
+    plt.title(data_name)
     # plt.ylim(-2, 75)
     plt.subplots_adjust(top=0.937, bottom=0.229)
     plt.legend()
