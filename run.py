@@ -29,14 +29,14 @@ if __name__ == '__main__':
     parser.add_argument('--task_name', type=str, required=False, default='STAEformer',
                         help='task name, options:[forcast, STEP, timeLinear, GWNET, Pretrain, STAEformer]')
     parser.add_argument('--is_training', type=int, required=False, default=1, help='status')
-    parser.add_argument('--model', type=str, required=False, default='STAEformer',
+    parser.add_argument('--model', type=str, required=False, default='stTrans',
                         help='model name, options: [Taformer, STEP, timeLinear, GWNET, '
                              'Pretrain, VanillaTransformer, SingleNodeGWNET, STAEformer, stTrans]')
 
     # path to modify
     # 1. data and adj
     parser.add_argument('--adj_path', type=str, default=r'datasets/PEMS08/adj.npy', help='path of the adjmx')
-    parser.add_argument('--root_path', type=str, default='/kaggle/input/d/skypeter/traffic-datasets/datasets/', help='root path of the data file')
+    parser.add_argument('--root_path', type=str, default='/kaggle/input/d/bosun8769123/traffic-datasets/datasets', help='root path of the data file')
     parser.add_argument('--data_path', type=str, default='PEMS08/data.npz', help='data file')
     # 2. model path
     parser.add_argument('--best_model_path', type=str, default='checkpoints/metr-la_el3/checkpoint.pth', help='the path of pretrain model')
