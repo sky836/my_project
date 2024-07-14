@@ -20,9 +20,9 @@ import numpy as np
 warnings.filterwarnings('ignore')
 
 
-class Exp_ST(Exp_Basic):
+class Exp_stTrans(Exp_Basic):
     def __init__(self, args):
-        super(Exp_ST, self).__init__(args)
+        super(Exp_stTrans, self).__init__(args)
 
     def _build_model(self):
         # # 读取邻接矩阵

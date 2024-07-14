@@ -15,7 +15,8 @@ class Exp_Basic(object):
             'Pretrain': taformerPretrain,
             'VanillaTransformer': vanillaTransformer,
             'SingleNodeGWNET':singleNodeGWNET,
-            'STAEformer': st_transformer
+            'STAEformer': STAEformer,
+            'stTrans': st_transformer
         }
         self.clip = None
         # self.clip = 5

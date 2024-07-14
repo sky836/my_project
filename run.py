@@ -5,7 +5,8 @@ import torch
 from torch.distributed import init_process_group, destroy_process_group
 
 from exp.exp_forcast import Exp_Forecast
-from exp.exp_staeformer import Exp_ST
+from exp.exp_stTrans import Exp_stTrans
+from exp.exp_STAEformer import Exp_ST
 from exp.exp_timeLinear import Exp_TimeLinear
 from exp.exp_GWNET import Exp_GWNET
 from exp.exp_pretrain import Exp_Pretrain
@@ -30,12 +31,12 @@ if __name__ == '__main__':
     parser.add_argument('--is_training', type=int, required=False, default=1, help='status')
     parser.add_argument('--model', type=str, required=False, default='STAEformer',
                         help='model name, options: [Taformer, STEP, timeLinear, GWNET, '
-                             'Pretrain, VanillaTransformer, SingleNodeGWNET, STAEformer]')
+                             'Pretrain, VanillaTransformer, SingleNodeGWNET, STAEformer, stTrans]')
 
     # path to modify
     # 1. data and adj
     parser.add_argument('--adj_path', type=str, default=r'datasets/PEMS08/adj.npy', help='path of the adjmx')
-    parser.add_argument('--root_path', type=str, default='/kaggle/input/d/qqbb8769/traffic-datasets/datasets', help='root path of the data file')
+    parser.add_argument('--root_path', type=str, default='/kaggle/input/d/skypeter/traffic-datasets/datasets/', help='root path of the data file')
     parser.add_argument('--data_path', type=str, default='PEMS08/data.npz', help='data file')
     # 2. model path
     parser.add_argument('--best_model_path', type=str, default='checkpoints/metr-la_el3/checkpoint.pth', help='the path of pretrain model')
@@ -137,6 +138,8 @@ if __name__ == '__main__':
         Exp = Exp_Pretrain
     elif args.task_name == 'STAEformer':
         Exp = Exp_ST
+    elif args.task_name == 'stTrans':
+        Exp = Exp_stTrans
     else:
         Exp = Exp_Forecast
 
