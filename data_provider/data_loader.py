@@ -266,7 +266,7 @@ class Dataset_PEMS08(Dataset):
         time = data[..., 1:]
         data = data[..., 0]
 
-        num_train = round(len(data) * 0.7)
+        num_train = round(len(data) * 0.6)
         num_test = round(len(data) * 0.2)
         num_vali = len(data) - num_train - num_test
         border1s = [0, num_train - self.seq_len, len(data) - num_test - self.seq_len]
