@@ -35,15 +35,15 @@ if __name__ == '__main__':
     # path to modify
     # 1. data and adj
     parser.add_argument('--adj_path', type=str, default=r'datasets/PEMS08/adj.npy', help='path of the adjmx')
-    parser.add_argument('--root_path', type=str, default='/kaggle/input/d/bosun8769123/traffic-datasets/datasets', help='root path of the data file')
-    parser.add_argument('--data_path', type=str, default='PEMS03/data.npz', help='data file')
+    parser.add_argument('--root_path', type=str, default='/kaggle/input/d/qqbb8769/traffic-datasets/datasets', help='root path of the data file')
+    parser.add_argument('--data_path', type=str, default='PEMS08/data.npz', help='data file')
     # 2. model path
     parser.add_argument('--best_model_path', type=str, default='checkpoints/metr-la_el3/checkpoint.pth', help='the path of pretrain model')
 
 
     # data loader
-    parser.add_argument('--data', type=str, required=False, default='PEMS03', help='dataset type')
-    parser.add_argument('--num_nodes', type=int, required=False, default=358, help='the nodes of dataset')
+    parser.add_argument('--data', type=str, required=False, default='PEMS08', help='dataset type')
+    parser.add_argument('--num_nodes', type=int, required=False, default=170, help='the nodes of dataset')
     parser.add_argument('--freq', type=str, default='t',
                         help='freq for time features encoding, options:[s:secondly, t:minutely, h:hourly, d:daily, b:business days, w:weekly, m:monthly], you can also use more detailed freq like 15min or 3h')
     parser.add_argument('--checkpoints', type=str, default='./checkpoints/', help='location of model checkpoints')
@@ -52,7 +52,7 @@ if __name__ == '__main__':
                         help='Adding time features to the data. options: [0, 1], 0 stands for 2 features. 1 stands for 4 features')
 
     # forecasting task
-    parser.add_argument('--seq_len', type=int, default=12, help='input sequence length')
+    parser.add_argument('--seq_len', type=int, default=12*12, help='input sequence length')
     parser.add_argument('--label_len', type=int, default=0, help='start token length')
     parser.add_argument('--pred_len', type=int, default=12, help='prediction sequence length')
     parser.add_argument('--inverse', action='store_true', help='inverse output data', default=True)
@@ -90,7 +90,7 @@ if __name__ == '__main__':
     parser.add_argument('--embed', type=str, default='fixed',
                         help='time features encoding, options:[timeF, fixed, learned]')
     parser.add_argument('--output_attention', type=bool, default=False, help='whether to output attention in ecoder')
-    parser.add_argument('--patch_size', type=int, default=1, help='The size of one patch')
+    parser.add_argument('--patch_size', type=int, default=12, help='The size of one patch')
     parser.add_argument('--label_patch_size', type=int, default=1, help='The size of one  decoder input patch')
     parser.add_argument('--time_channel', type=int, default=4, help='The channel of time inputs')
     parser.add_argument('--target_channel', type=int, default=5, help='The channel of target inputs')
