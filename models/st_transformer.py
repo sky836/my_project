@@ -524,10 +524,10 @@ class Model(nn.Module):
             target_features = target_features.transpose(1, 2).reshape(batch_size, num_nodes, -1)
             y_target = y_target.transpose(1, 2).reshape(batch_size, num_nodes, -1)
         target_features = torch.cat((target_features, y_target), dim=-1)  # (batch_size, in_steps, num_nodes, model_dim * 2)
-
+        '''
         if self.num_patches == self.out_steps:
             target_features = target_features.transpose(1, 2).reshape(batch_size, num_nodes, -1)
-        '''
+
         if self.spatial_embedding_dim > 0:
             node_emb = self.node_emb.unsqueeze(0).expand(batch_size, -1, -1)
             target_features = torch.cat([target_features, node_emb], dim=-1)  # B, N, nP*dm*2+dN
