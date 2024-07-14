@@ -207,12 +207,12 @@ class Model(nn.Module):
             ]
         )
 
-        self.attn_layers_s = nn.ModuleList(
-            [
-                SelfAttentionLayer(self.model_dim, self.feed_forward_dim, self.num_heads, self.dropout)
-                for _ in range(self.num_layers)
-            ]
-        )
+        # self.attn_layers_s = nn.ModuleList(
+        #     [
+        #         SelfAttentionLayer(self.model_dim, self.feed_forward_dim, self.num_heads, self.dropout)
+        #         for _ in range(self.num_layers)
+        #     ]
+        # )
 
     def forward(self, x):
         # x: (batch_size, in_steps, num_nodes, input_dim+tod+dow=3)
@@ -250,8 +250,8 @@ class Model(nn.Module):
 
         for attn in self.attn_layers_t:
             x = attn(x, dim=1)
-        for attn in self.attn_layers_s:
-            x = attn(x, dim=2)
+        # for attn in self.attn_layers_s:
+        #     x = attn(x, dim=2)
         # (batch_size, in_steps, num_nodes, model_dim)
 
         if self.use_mixed_proj:
