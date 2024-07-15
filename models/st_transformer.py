@@ -438,8 +438,8 @@ class Model(nn.Module):
         # )
 
         # ===================================decoding special=============================================
-        # self.decoder = Decoder_layer(self.time_dim, self.target_dim, self.supports, self.supports_len, self.num_heads,
-        #                              self.feed_forward_dim, self.dec_layers, self.dropout)
+        self.decoder = Decoder_layer(self.time_dim, self.target_dim, self.supports, self.supports_len, self.num_heads,
+                                     self.feed_forward_dim, self.dec_layers, self.dropout)
 
     def encoding(self, x):
         # x: (batch_size, in_steps, num_nodes, input_dim+tod+dow=3)
