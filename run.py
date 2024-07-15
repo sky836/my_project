@@ -26,8 +26,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Taformer')
 
     # basic config
-    parser.add_argument('--task_name', type=str, required=False, default='STAEformer',
-                        help='task name, options:[forcast, STEP, timeLinear, GWNET, Pretrain, STAEformer]')
+    parser.add_argument('--task_name', type=str, required=False, default='stTrans',
+                        help='task name, options:[forcast, STEP, timeLinear, GWNET, Pretrain, STAEformer, stTrans]')
     parser.add_argument('--is_training', type=int, required=False, default=1, help='status')
     parser.add_argument('--model', type=str, required=False, default='stTrans',
                         help='model name, options: [Taformer, STEP, timeLinear, GWNET, '
