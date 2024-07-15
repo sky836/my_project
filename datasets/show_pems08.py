@@ -3,7 +3,7 @@ import os
 import numpy as np
 from matplotlib import pyplot as plt
 
-data_name = 'PEMSBAY'
+data_name = 'PEMS03'
 data = np.load(os.path.join(fr'{data_name}/', "data.npz"))["data"].astype(np.float32)
 x = data[..., 0]
 
@@ -18,7 +18,7 @@ def showTimeseries(timeSeries, time):
         print(timeSeries[key])
         plt.plot(timeSeries[key], label=key, linewidth=2)
     tick_positions = np.arange(len(time))
-    plt.xticks(tick_positions[::24], time[::24], rotation=45)
+    plt.xticks(tick_positions[::sample], time[::sample], rotation=45)
     plt.xlabel('Time')
     plt.ylabel('Flow')
     plt.title(data_name)
@@ -29,7 +29,8 @@ def showTimeseries(timeSeries, time):
     plt.show()
 
 
-interval = 12*48
+interval = 12*24*2
+sample = 12*24
 for i in range(0, x.shape[0], interval):
     for j in range(0, x.shape[1], 3):
         time_series = {}

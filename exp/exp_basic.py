@@ -2,7 +2,7 @@ import os
 import torch
 from torch.nn.parallel import DistributedDataParallel as DDP
 
-from models import timeLinear, GWNET, taformerPredict, taformerPretrain, vanillaTransformer, singleNodeGWNET, STAEformer, swin_transformer, st_transformer
+from models import timeLinear, GWNET, taformerPredict, taformerPretrain, vanillaTransformer, singleNodeGWNET, STAEformer, swin_transformer, st_transformer, timeModel
 
 
 class Exp_Basic(object):
@@ -16,7 +16,8 @@ class Exp_Basic(object):
             'VanillaTransformer': vanillaTransformer,
             'SingleNodeGWNET':singleNodeGWNET,
             'STAEformer': STAEformer,
-            'stTrans': st_transformer
+            'stTrans': st_transformer,
+            'timeModel': timeModel
         }
         self.clip = None
         # self.clip = 5

@@ -518,13 +518,12 @@ class Model(nn.Module):
         batch_size, _, num_nodes, _ = x.shape
         time_features, target_features = self.encoding(x)
 
-        '''
         y_target = self.decoding(time_features, target_features, y)
         if self.num_patches != self.out_steps:
             target_features = target_features.transpose(1, 2).reshape(batch_size, num_nodes, -1)
             y_target = y_target.transpose(1, 2).reshape(batch_size, num_nodes, -1)
         target_features = torch.cat((target_features, y_target), dim=-1)  # (batch_size, in_steps, num_nodes, model_dim * 2)
-        '''
+
         if self.num_patches == self.out_steps:
             target_features = target_features.transpose(1, 2).reshape(batch_size, num_nodes, -1)
 
