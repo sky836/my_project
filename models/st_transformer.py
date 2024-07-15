@@ -397,7 +397,7 @@ class Model(nn.Module):
 
         if self.use_mixed_proj:
             self.output_proj = nn.Linear(
-                (self.num_patches) * self.target_dim + self.spatial_embedding_dim, self.out_steps * self.output_dim
+                (self.num_patches + self.out_steps) * self.target_dim + self.spatial_embedding_dim, self.out_steps * self.output_dim
             )
             # self.output_proj = nn.Linear(
             #     self.target_dim + self.spatial_embedding_dim, out_steps * output_dim
