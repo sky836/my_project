@@ -376,6 +376,7 @@ class Model(nn.Module):
         self.dropout = configs.dropout
         if self.supports is None:
             self.supports = []
+        self.supports_len = 0
 
         # self.input_proj = nn.Linear(input_dim, input_embedding_dim)
         self.patch_emb = PatchEmbed(seq_len=self.in_steps, patch_size=self.patch_size,
@@ -404,7 +405,7 @@ class Model(nn.Module):
             # )
         else:
             self.temporal_proj = nn.Linear(self.in_steps, self.out_steps)
-            self.output_proj = nn.Linear(self.target_dim, self.output_dim)
+            self.output_proj = nn.Linear(self.target_dim*2, self.output_dim)
 
         # ===================================encoding special=============================================
         self.merge_attn_layers = nn.ModuleList(
@@ -413,15 +414,6 @@ class Model(nn.Module):
                 for _ in range(self.num_layers)
             ]
         )
-
-        # GCN special
-        self.supports_len = 0
-        if supports is not None:
-            self.supports_len += len(supports)
-        self.adp = nn.Parameter(torch.empty(self.num_nodes, self.num_nodes))
-        nn.init.xavier_uniform_(self.adp)
-        self.supports_len += 1
-        self.supports = self.supports + [self.adp]
 
         # self.gconvs = nn.ModuleList(
         #     [
@@ -524,8 +516,8 @@ class Model(nn.Module):
             y_target = y_target.transpose(1, 2).reshape(batch_size, num_nodes, -1)
         target_features = torch.cat((target_features, y_target), dim=-1)  # (batch_size, in_steps, num_nodes, model_dim * 2)
 
-        if self.num_patches == self.out_steps:
-            target_features = target_features.transpose(1, 2).reshape(batch_size, num_nodes, -1)
+        # if self.num_patches == self.out_steps:
+        #     target_features = target_features.transpose(1, 2).reshape(batch_size, num_nodes, -1)
 
         if self.spatial_embedding_dim > 0:
             node_emb = self.node_emb.unsqueeze(0).expand(batch_size, -1, -1)
@@ -535,8 +527,10 @@ class Model(nn.Module):
         # target_features = self.predict(target_features)
         out = target_features
 
-        out = self.output_proj(out).view(batch_size, self.num_nodes, self.out_steps, self.output_dim)
-        out = out.transpose(1, 2)  # (batch_size, out_steps, num_nodes, output_dim)
+        out = self.output_proj(out)
+
+        # out = self.output_proj(out).view(batch_size, self.num_nodes, self.out_steps, self.output_dim)
+        # out = out.transpose(1, 2)  # (batch_size, out_steps, num_nodes, output_dim)
 
         return out
 

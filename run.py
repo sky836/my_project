@@ -77,7 +77,7 @@ if __name__ == '__main__':
     parser.add_argument('--output_dim', type=int, default=1, help='')
     parser.add_argument('--steps_per_day', type=int, default=288, help='')
     parser.add_argument('--num_layers', type=int, default=4, help='')
-    parser.add_argument('--use_mixed_proj', type=bool, default=True, help='')
+    parser.add_argument('--use_mixed_proj', type=bool, default=False, help='')
 
     parser.add_argument('--encoder_Time_embed_dim', type=int, default=24, help='dimension of encoder time')
     parser.add_argument('--encoder_Target_embed_dim', type=int, default=24, help='dimension of encoder target')
