@@ -331,7 +331,7 @@ class Decoder_layer(nn.Module):
         # y_time: (batch_size, in_steps, num_nodes, d_model)
         for i in range(self.dec_layers):
             y_time = self.self_attn_time[i](y_time, y_time, y_time, dim=1)
-            y_time = self.cross_attn_time[i](y_time, x_time, x_time, dim=1)
+            # y_time = self.cross_attn_time[i](y_time, x_time, x_time, dim=1)
 
         y_target = self.cross_target(y_time, x_time, x_target)
 
