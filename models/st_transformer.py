@@ -401,8 +401,6 @@ class Model(nn.Module):
         self.time_embedding = nn.init.xavier_uniform_(
             nn.Parameter(torch.empty(self.num_patches, self.tod_embedding_dim))
         )
-        self.pos = nn.Parameter(torch.empty(self.num_patches, self.input_embedding_dim))
-        nn.init.xavier_uniform_(self.pos)
 
         if self.use_mixed_proj:
             self.output_proj = nn.Linear(
@@ -455,16 +453,10 @@ class Model(nn.Module):
             dow = dow[..., 0]
         x = x[..., : self.input_dim]
 
-        index = torch.arange(self.num_patches).unsqueeze(0).unsqueeze(0)
-        batch_size, in_steps, num_nodes, model_dim = x.shape
-        device = x.device
-        index = index.repeat(batch_size, num_nodes, 1).to(device)
-        pos = self.pos[index].transpose(1, 2)
-
         # x = self.input_proj(x)  # (batch_size, in_steps, num_nodes, input_embedding_dim)
         x = self.patch_emb(x)
         patch_size = self.patch_emb.patch_size
-        target_features = [x, pos]
+        target_features = [x]
         time_features = []
         if self.tod_embedding_dim > 0:
             tod_emb = self.tod_embedding(
