@@ -398,7 +398,7 @@ class Model(nn.Module):
 
         if self.use_mixed_proj:
             self.output_proj = nn.Linear(
-                (self.num_patches + self.out_steps) * self.target_dim + self.spatial_embedding_dim, self.out_steps * self.output_dim
+                (self.num_patches) * self.target_dim + self.spatial_embedding_dim, self.out_steps * self.output_dim
             )
             # self.output_proj = nn.Linear(
             #     self.target_dim + self.spatial_embedding_dim, out_steps * output_dim
@@ -432,6 +432,8 @@ class Model(nn.Module):
         # ===================================decoding special=============================================
         self.decoder = Decoder_layer(self.time_dim, self.target_dim, self.supports, self.supports_len, self.num_heads,
                                      self.feed_forward_dim, self.dec_layers, self.dropout)
+
+        self.time_fc = nn.Linear(self.time_dim * self.num_patches, self.out_steps * (self.input_dim - 1))
 
     def encoding(self, x):
         # x: (batch_size, in_steps, num_nodes, input_dim+tod+dow=3)
@@ -510,29 +512,27 @@ class Model(nn.Module):
         batch_size, _, num_nodes, _ = x.shape
         time_features, target_features = self.encoding(x)
 
-        y_target = self.decoding(time_features, target_features, y)
-        if self.num_patches != self.out_steps:
-            target_features = target_features.transpose(1, 2).reshape(batch_size, num_nodes, -1)
-            y_target = y_target.transpose(1, 2).reshape(batch_size, num_nodes, -1)
-        target_features = torch.cat((target_features, y_target), dim=-1)  # (batch_size, in_steps, num_nodes, model_dim * 2)
-
-        # if self.num_patches == self.out_steps:
+        # y_target = self.decoding(time_features, target_features, y)
+        # if self.num_patches != self.out_steps:
         #     target_features = target_features.transpose(1, 2).reshape(batch_size, num_nodes, -1)
+        #     y_target = y_target.transpose(1, 2).reshape(batch_size, num_nodes, -1)
+        # target_features = torch.cat((target_features, y_target), dim=-1)  # (batch_size, in_steps, num_nodes, model_dim * 2)
+
+        if self.num_patches == self.out_steps:
+            target_features = target_features.transpose(1, 2).reshape(batch_size, num_nodes, -1)
 
         if self.spatial_embedding_dim > 0:
             node_emb = self.node_emb.unsqueeze(0).expand(batch_size, -1, -1)
             target_features = torch.cat([target_features, node_emb], dim=-1)  # B, N, nP*dm*2+dN
 
-
-        # target_features = self.predict(target_features)
         out = target_features
+        out = self.output_proj(out).view(batch_size, self.num_nodes, self.out_steps, self.output_dim)
+        out = out.transpose(1, 2)  # (batch_size, out_steps, num_nodes, output_dim)
 
-        out = self.output_proj(out)
+        time = time_features.reshape(batch_size, -1)
+        time = self.time_fc(time).view(batch_size, self.out_steps, self.input_dim-1)
 
-        # out = self.output_proj(out).view(batch_size, self.num_nodes, self.out_steps, self.output_dim)
-        # out = out.transpose(1, 2)  # (batch_size, out_steps, num_nodes, output_dim)
-
-        return out
+        return out, time
 
 
 if __name__ == "__main__":

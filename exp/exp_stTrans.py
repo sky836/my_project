@@ -127,11 +127,9 @@ class Exp_stTrans(Exp_Basic):
         early_stopping = EarlyStopping(patience=self.args.patience, verbose=True)
 
         model_optim = self._select_optimizer()
-        scheduler = torch.optim.lr_scheduler.MultiStepLR(
-            model_optim,
-            milestones=[20, 30],
-            gamma=0.1
-        )
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(model_optim, mode='min', factor=0.1, patience=20,
+                                                               verbose=True, threshold=0.001,threshold_mode='rel',
+                                                               cooldown=0, min_lr=2e-6, eps=1e-08)
         criterion = self._select_criterion()
 
         n_parameters = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
@@ -174,7 +172,8 @@ class Exp_stTrans(Exp_Basic):
                 batch_x = batch_x.float().to(self.device)
                 batch_y = batch_y.float().to(self.device)
 
-                outputs = self.model(batch_x, batch_y).squeeze(-1)
+                outputs, time_pred = self.model(batch_x, batch_y)
+                outputs = outputs.squeeze(-1)
                 y = batch_y[:, self.args.label_len:, :, 0]
 
                 if train_data.scale and self.args.inverse:
@@ -182,7 +181,7 @@ class Exp_stTrans(Exp_Basic):
                     outputs = train_data.inverse_transform(outputs.reshape(-1, n_nodes)).reshape(batch_size,
                                                                                                  pred_len, n_nodes)
 
-                loss = criterion(outputs, y, 0.0)
+                loss = criterion(outputs, y, 0.0) + criterion(time_pred, batch_y[:, :, 0, 1:])
                 train_loss.append(loss.item())
 
                 if (i + 1) % 100 == 0:
@@ -201,13 +200,13 @@ class Exp_stTrans(Exp_Basic):
                 model_optim.step()
 
             if self.device == 0:
+                current_lr = model_optim.param_groups[0]['lr']
                 print_log(log, "Epoch: {} cost time: {}".format(epoch + 1, time.time() - epoch_time))
-                lr = scheduler.get_last_lr()
-                print_log(log, "Epoch: {} lr: {}".format(epoch + 1, lr))
-            scheduler.step()  # 学习率调整
+                print_log(log, "Epoch: {} current lr: {}".format(epoch + 1, current_lr))
             train_loss = np.average(train_loss)
             vali_loss, vali_mae, vali_mse, vali_rmse, vali_mape, vali_mspe, _, _ = self.vali(vali_data, vali_loader,
                                                                                              criterion)
+            scheduler.step(vali_loss)  # 学习率调整
             if self.device == 0:
                 print_log(
                     log,
