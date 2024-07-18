@@ -368,7 +368,7 @@ class Model(nn.Module):
             + configs.adaptive_embedding_dim
         )
         self.time_dim = (configs.tod_embedding_dim * 2 + configs.dow_embedding_dim)
-        self.target_dim = (configs.input_embedding_dim + configs.adaptive_embedding_dim)
+        self.target_dim = (configs.input_embedding_dim*2 + configs.adaptive_embedding_dim)
         self.num_heads = configs.n_heads
         self.num_layers = configs.num_layers
         self.dec_layers = configs.d_layers
@@ -463,9 +463,8 @@ class Model(nn.Module):
 
         # x = self.input_proj(x)  # (batch_size, in_steps, num_nodes, input_embedding_dim)
         x = self.patch_emb(x)
-        x = x + pos
         patch_size = self.patch_emb.patch_size
-        target_features = [x]
+        target_features = [x, pos]
         time_features = []
         if self.tod_embedding_dim > 0:
             tod_emb = self.tod_embedding(
