@@ -128,9 +128,11 @@ class Exp_stTrans(Exp_Basic):
         early_stopping = EarlyStopping(patience=self.args.patience, verbose=True)
 
         model_optim = self._select_optimizer()
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(model_optim, mode='min', factor=0.1, patience=20,
-                                                               verbose=True, threshold=0.001,threshold_mode='rel',
-                                                               cooldown=0, min_lr=2e-6, eps=1e-08)
+        scheduler = torch.optim.lr_scheduler.MultiStepLR(
+            model_optim,
+            milestones=[20, 30],
+            gamma=0.1
+        )
         criterion = self._select_criterion()
 
         n_parameters = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
@@ -207,7 +209,7 @@ class Exp_stTrans(Exp_Basic):
             train_loss = np.average(train_loss)
             vali_loss, vali_mae, vali_mse, vali_rmse, vali_mape, vali_mspe, _, _ = self.vali(vali_data, vali_loader,
                                                                                              criterion)
-            scheduler.step(vali_loss)  # 学习率调整
+            scheduler.step()  # 学习率调整
             if self.device == 0:
                 print_log(
                     log,
@@ -250,7 +252,7 @@ class Exp_stTrans(Exp_Basic):
         test_data, test_loader = self._get_data(flag='test')
         if test:
             print('loading model')
-            self.model.load_state_dict(torch.load(os.path.join('./checkpoints/' + setting, 'checkpoint.pth')))
+            self.model.load_state_dict(torch.load(os.path.join('./checkpoints/' + setting, 'checkpoint.pth')), strict=False)
             print("Model = %s" % str(self.model))
             n_parameters = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
             print('number of params (M): %.2f' % (n_parameters / 1.e6))

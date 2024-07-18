@@ -160,7 +160,7 @@ class AttentionLayer(nn.Module):
 
         out = self.out_proj(out)
 
-        return out, attn_score_no_softmax, value
+        return out, attn_score, value
 
 
 class SelfAttentionLayer(nn.Module):
@@ -236,6 +236,9 @@ class MergeAttentionLayer(nn.Module):
         self.dropout1 = nn.Dropout(dropout)
         self.dropout2 = nn.Dropout(dropout)
 
+        self.w = nn.Parameter(torch.FloatTensor(1), requires_grad=True)
+        self.w.data.fill_(0.5)
+
     def forward(self, time_features, target_features, dim=-2):
         batch_size = time_features.shape[0]
         time_features, target_features = time_features.transpose(dim, -2), target_features.transpose(dim, -2)
@@ -243,8 +246,8 @@ class MergeAttentionLayer(nn.Module):
         residual_time, residual_target = time_features, target_features
         time_features, attn_time_no_softmax, _ = self.attn_time(time_features, time_features, time_features)
         _, attn_target_no_softmax, value = self.attn_target(target_features, target_features, target_features)
-        merge_attn = attn_time_no_softmax.unsqueeze(1) + attn_target_no_softmax
-        merge_attn = torch.softmax(merge_attn, dim=-1)
+        merge_attn = self.w * attn_time_no_softmax.unsqueeze(1) + (1 - self.w) * attn_target_no_softmax
+        # merge_attn = torch.softmax(merge_attn, dim=-1)
         target_features = merge_attn @ value  # (num_heads * batch_size, ..., tgt_length, head_dim)
         target_features = torch.cat(
             torch.split(target_features, batch_size, dim=0), dim=-1
@@ -364,7 +367,7 @@ class Model(nn.Module):
             + configs.spatial_embedding_dim
             + configs.adaptive_embedding_dim
         )
-        self.time_dim = (configs.tod_embedding_dim + configs.dow_embedding_dim)
+        self.time_dim = (configs.tod_embedding_dim * 2 + configs.dow_embedding_dim)
         self.target_dim = (configs.input_embedding_dim + configs.adaptive_embedding_dim)
         self.num_heads = configs.n_heads
         self.num_layers = configs.num_layers
@@ -395,6 +398,9 @@ class Model(nn.Module):
             self.adaptive_embedding = nn.init.xavier_uniform_(
                 nn.Parameter(torch.empty(self.num_patches, self.num_nodes, self.adaptive_embedding_dim))
             )
+        self.time_embedding = nn.init.xavier_uniform_(
+            nn.Parameter(torch.empty(self.num_patches, self.tod_embedding_dim))
+        )
 
         if self.use_mixed_proj:
             self.output_proj = nn.Linear(
@@ -462,7 +468,9 @@ class Model(nn.Module):
                 dow.long()
             )  # (batch_size, in_steps, num_nodes, dow_embedding_dim)
             time_features.append(dow_emb[:, ::patch_size])
-
+        time_features.append(self.time_embedding.expand(
+                size=(batch_size, *self.time_embedding.shape)
+            ))
         if self.adaptive_embedding_dim > 0:
             adp_emb = self.adaptive_embedding.expand(
                 size=(batch_size, *self.adaptive_embedding.shape)
