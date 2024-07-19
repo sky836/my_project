@@ -7,6 +7,30 @@ import torch.nn.functional as F
 from models.swin_transformer import PatchEmbed
 
 
+class CrossAttentionLayer(nn.Module):
+    def __init__(
+        self, time_dim, target_dim, feed_forward_dim=2048, num_heads=8, dropout=0, mask=False
+    ):
+        super().__init__()
+
+        self.crossAtten = AttentionLayer(time_dim, num_heads, target_dim=target_dim)
+        self.fc = FC(target_dim, feed_forward_dim, dropout)
+
+        self.ln = nn.LayerNorm(target_dim)
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, y_time, x_time, x_target):
+        y_time, x_time, x_target = y_time.transpose(1, -2), x_time.transpose(1, -2), x_target.transpose(1, -2)
+        residual_y, residual_x = y_time, x_time
+        y_target, cross_attn_no_softmax, _ = self.crossAtten(y_time, x_time, x_target)
+        y_target = self.dropout(y_target)
+        y_target = self.ln(y_target)
+
+        y_target = self.fc(y_target)
+        y_target = y_target.transpose(1, -2)
+        return y_target
+
+
 class Decoder_layer(nn.Module):
     def __init__(self, time_dim, target_dim, supports, supports_len, num_heads, feed_forward_dim, dec_layers, dropout):
         super().__init__()
@@ -326,28 +350,55 @@ class MergeAttentionLayer(nn.Module):
         return time_features, target_features
 
 
-class CrossAttentionLayer(nn.Module):
-    def __init__(
-        self, time_dim, target_dim, feed_forward_dim=2048, num_heads=8, dropout=0, mask=False
-    ):
-        super().__init__()
+class STGCN(nn.Module):
+    def __init__(self, time_dim, target_dim):
+        super(STGCN, self).__init__()
+        self.cheb_k = 2
+        self.time_dim = time_dim
+        self.target_dim = target_dim
+        self.weights_pool = nn.init.xavier_normal_(
+            nn.Parameter(
+                torch.FloatTensor(self.time_dim, self.cheb_k * self.target_dim, self.target_dim)
+            )
+        )
+        self.bias_pool = nn.init.xavier_normal_(
+            nn.Parameter(torch.FloatTensor(self.time_dim, self.target_dim))
+        )
 
-        self.crossAtten = AttentionLayer(time_dim, num_heads, target_dim=target_dim)
-        self.fc = FC(target_dim, feed_forward_dim, dropout)
+    def forward(self, t, s, support):
+        s_g = []
 
-        self.ln = nn.LayerNorm(target_dim)
-        self.dropout = nn.Dropout(dropout)
+        if support.dim() == 2:
+            graph_list = [torch.eye(support.shape[0]).to(support.device), support]
+            for k in range(2, self.cheb_k):
+                graph_list.append(
+                    torch.matmul(2 * support, graph_list[-1]) - graph_list[-2]
+                )
+            for graph in graph_list:
+                s_g.append(torch.einsum("nm,btmc->btnc", graph, s))
+        elif support.dim() == 3:
+            graph_list = [
+                torch.eye(support.shape[1])
+                .repeat(support.shape[0], 1, 1)
+                .to(support.device),
+                support,
+            ]
+            for k in range(2, self.cheb_k):
+                graph_list.append(
+                    torch.matmul(2 * support, graph_list[-1]) - graph_list[-2]
+                )
+            for graph in graph_list:
+                s_g.append(torch.einsum("bnm,bmc->bnc", graph, s))
+        s_g = torch.cat(s_g, dim=-1)
 
-    def forward(self, y_time, x_time, x_target):
-        y_time, x_time, x_target = y_time.transpose(1, -2), x_time.transpose(1, -2), x_target.transpose(1, -2)
-        residual_y, residual_x = y_time, x_time
-        y_target, cross_attn_no_softmax, _ = self.crossAtten(y_time, x_time, x_target)
-        y_target = self.dropout(y_target)
-        y_target = self.ln(y_target)
-
-        y_target = self.fc(y_target)
-        y_target = y_target.transpose(1, -2)
-        return y_target
+        weights = torch.einsum(
+            "btd,dio->btio", t, self.weights_pool
+        )  # B, cheb_k*in_dim, out_dim
+        bias = torch.matmul(t, self.bias_pool)  # B, T, out_dim
+        s_gconv = (
+                torch.einsum("btni,btio->btno", s_g, weights) + bias.unsqueeze(2)  # todo: bias check
+        )  # B, T, N, out_dim
+        return s_gconv
 
 
 class Model(nn.Module):
@@ -409,7 +460,7 @@ class Model(nn.Module):
 
         if self.use_mixed_proj:
             self.output_proj = nn.Linear(
-                (self.num_patches) * self.target_dim + self.spatial_embedding_dim, self.out_steps * self.output_dim
+                (self.num_patches) * self.target_dim, self.out_steps * self.output_dim
             )
             # self.output_proj = nn.Linear(
             #     self.target_dim + self.spatial_embedding_dim, out_steps * output_dim
@@ -424,6 +475,12 @@ class Model(nn.Module):
                 MergeAttentionLayer(self.time_dim, self.target_dim, self.feed_forward_dim, self.num_heads, self.dropout)
                 for _ in range(self.num_layers)
             ]
+        )
+        self.STGCNS = nn.ModuleList(
+            [
+                STGCN(self.time_dim, self.target_dim)
+                for _ in range(self.num_layers)
+             ]
         )
 
         self.time_fc = nn.Linear(self.time_dim * self.num_patches, self.out_steps * (self.input_dim - 1))
@@ -466,8 +523,13 @@ class Model(nn.Module):
         target_features = torch.cat(target_features, dim=-1)  # (batch_size, in_steps, num_nodes, model_dim)
         time_features = torch.cat(time_features, dim=-1)  # (batch_size, in_steps, num_nodes, model_dim)
 
+        support = torch.softmax(
+            torch.relu(self.node_emb @ self.node_emb.T), dim=-1
+        )
+
         for i in range(self.num_layers):
             time_features, target_features = self.merge_attn_layers[i](time_features, target_features, dim=1)
+            target_features = self.STGCNS[i](time_features, target_features, support)
             # target_features = self.gconvs[i](target_features, self.supports)
 
         # for i in range(self.num_layers):
@@ -481,10 +543,6 @@ class Model(nn.Module):
         time_features, target_features = self.encoding(x)
 
         target_features = target_features.transpose(1, 2).reshape(batch_size, num_nodes, -1)
-
-        if self.spatial_embedding_dim > 0:
-            node_emb = self.node_emb.unsqueeze(0).expand(batch_size, -1, -1)
-            target_features = torch.cat([target_features, node_emb], dim=-1)  # B, N, nP*dm*2+dN
 
         out = target_features
         out = self.output_proj(out).view(batch_size, self.num_nodes, self.out_steps, self.output_dim)
