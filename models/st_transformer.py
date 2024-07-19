@@ -7,6 +7,60 @@ import torch.nn.functional as F
 from models.swin_transformer import PatchEmbed
 
 
+class Decoder_layer(nn.Module):
+    def __init__(self, time_dim, target_dim, supports, supports_len, num_heads, feed_forward_dim, dec_layers, dropout):
+        super().__init__()
+        self.time_dim = time_dim
+        self.target_dim = target_dim
+        self.dec_layers = dec_layers
+
+        self.self_attn_time = nn.ModuleList(
+            [
+                SelfAttentionLayer(time_dim, feed_forward_dim, num_heads, dropout)
+                for _ in range(dec_layers)
+            ]
+        )
+
+        self.cross_attn_time = nn.ModuleList(
+            [
+                SelfAttentionLayer(time_dim, feed_forward_dim, num_heads, dropout)
+                for _ in range(dec_layers)
+            ]
+        )
+
+        self.cross_target = CrossAttentionLayer(time_dim, target_dim, feed_forward_dim, num_heads, dropout)
+
+        # GCN special
+        # self.supports = supports
+        # self.supports_len = supports_len
+        # self.gconvs = nn.ModuleList(
+        #     [
+        #         gcn(self.target_dim, self.target_dim, dropout, support_len=self.supports_len)
+        #         for _ in range(dec_layers)
+        #     ]
+        # )
+        # self.self_attn_layers_s = nn.ModuleList(
+        #     [
+        #         SelfAttentionLayer(target_dim, feed_forward_dim, num_heads, dropout)
+        #         for _ in range(dec_layers)
+        #     ]
+        # )
+
+    def forward(self, y_time, x_time, x_target):
+        # y_time: (batch_size, in_steps, num_nodes, d_model)
+        for i in range(self.dec_layers):
+            y_time = self.self_attn_time[i](y_time, y_time, y_time, dim=1)
+            # y_time = self.cross_attn_time[i](y_time, x_time, x_time, dim=1)
+
+        y_target = self.cross_target(y_time, x_time, x_target)
+
+        # for i in range(self.dec_layers):
+        #     y_target = self.self_attn_layers_s[i](y_target, y_target, y_target, dim=2)
+        #     y_target = self.gconvs[i](y_target, self.supports)
+
+        return y_target
+
+
 class nconv(nn.Module):
     def __init__(self):
         super(nconv,self).__init__()
@@ -231,6 +285,10 @@ class MergeAttentionLayer(nn.Module):
         self.fc_time = FC(time_dim, feed_forward_dim, dropout)
         self.fc_target = FC(target_dim, feed_forward_dim, dropout)
 
+        self.self_targetFC = FC(target_dim, feed_forward_dim, dropout)
+        self.dropout_self = nn.Dropout(dropout)
+        self.ln_self = nn.LayerNorm(target_dim)
+
         self.ln1 = nn.LayerNorm(time_dim)
         self.ln2 = nn.LayerNorm(target_dim)
         self.dropout1 = nn.Dropout(dropout)
@@ -246,6 +304,7 @@ class MergeAttentionLayer(nn.Module):
         residual_time, residual_target = time_features, target_features
         time_features, attn_time_no_softmax, _ = self.attn_time(time_features, time_features, time_features)
         _, attn_target_no_softmax, value = self.attn_target(target_features, target_features, target_features)
+
         merge_attn = self.w * attn_time_no_softmax.unsqueeze(1) + (1 - self.w) * attn_target_no_softmax
         # merge_attn = torch.softmax(merge_attn, dim=-1)
         target_features = merge_attn @ value  # (num_heads * batch_size, ..., tgt_length, head_dim)
@@ -288,60 +347,6 @@ class CrossAttentionLayer(nn.Module):
 
         y_target = self.fc(y_target)
         y_target = y_target.transpose(1, -2)
-        return y_target
-
-
-class Decoder_layer(nn.Module):
-    def __init__(self, time_dim, target_dim, supports, supports_len, num_heads, feed_forward_dim, dec_layers, dropout):
-        super().__init__()
-        self.time_dim = time_dim
-        self.target_dim = target_dim
-        self.dec_layers = dec_layers
-
-        self.self_attn_time = nn.ModuleList(
-            [
-                SelfAttentionLayer(time_dim, feed_forward_dim, num_heads, dropout)
-                for _ in range(dec_layers)
-            ]
-        )
-
-        self.cross_attn_time = nn.ModuleList(
-            [
-                SelfAttentionLayer(time_dim, feed_forward_dim, num_heads, dropout)
-                for _ in range(dec_layers)
-            ]
-        )
-
-        self.cross_target = CrossAttentionLayer(time_dim, target_dim, feed_forward_dim, num_heads, dropout)
-
-        # GCN special
-        # self.supports = supports
-        # self.supports_len = supports_len
-        # self.gconvs = nn.ModuleList(
-        #     [
-        #         gcn(self.target_dim, self.target_dim, dropout, support_len=self.supports_len)
-        #         for _ in range(dec_layers)
-        #     ]
-        # )
-        # self.self_attn_layers_s = nn.ModuleList(
-        #     [
-        #         SelfAttentionLayer(target_dim, feed_forward_dim, num_heads, dropout)
-        #         for _ in range(dec_layers)
-        #     ]
-        # )
-
-    def forward(self, y_time, x_time, x_target):
-        # y_time: (batch_size, in_steps, num_nodes, d_model)
-        for i in range(self.dec_layers):
-            y_time = self.self_attn_time[i](y_time, y_time, y_time, dim=1)
-            # y_time = self.cross_attn_time[i](y_time, x_time, x_time, dim=1)
-
-        y_target = self.cross_target(y_time, x_time, x_target)
-
-        # for i in range(self.dec_layers):
-        #     y_target = self.self_attn_layers_s[i](y_target, y_target, y_target, dim=2)
-        #     y_target = self.gconvs[i](y_target, self.supports)
-
         return y_target
 
 
@@ -421,24 +426,6 @@ class Model(nn.Module):
             ]
         )
 
-        # self.gconvs = nn.ModuleList(
-        #     [
-        #         gcn(self.target_dim, self.target_dim, dropout, support_len=self.supports_len)
-        #         for _ in range(num_layers)
-        #     ]
-        # )
-
-        # self.self_attn_layers_s = nn.ModuleList(
-        #     [
-        #         SelfAttentionLayer(self.target_dim, self.feed_forward_dim, self.num_heads, self.dropout)
-        #         for _ in range(self.num_layers)
-        #     ]
-        # )
-
-        # ===================================decoding special=============================================
-        self.decoder = Decoder_layer(self.time_dim, self.target_dim, self.supports, self.supports_len, self.num_heads,
-                                     self.feed_forward_dim, self.dec_layers, self.dropout)
-
         self.time_fc = nn.Linear(self.time_dim * self.num_patches, self.out_steps * (self.input_dim - 1))
 
     def encoding(self, x):
@@ -489,45 +476,11 @@ class Model(nn.Module):
         # (batch_size, in_steps, num_nodes, model_dim)
         return time_features, target_features
 
-    def decoding(self, time_enc, target_enc, y):
-        # y: (batch_size, in_steps, num_nodes, tod+dow=2)
-        batch_size = y.shape[0]
-        if self.tod_embedding_dim > 0:
-            tod = y[..., 1]
-            tod = tod[..., 0]
-        if self.dow_embedding_dim > 0:
-            dow = y[..., 2]
-            dow = dow[..., 0]
-
-        time_features = []
-        if self.tod_embedding_dim > 0:
-            tod_emb = self.tod_embedding(
-                (tod * self.steps_per_day).long()
-            )  # (batch_size, in_steps, num_nodes, tod_embedding_dim)
-            time_features.append(tod_emb)
-        if self.dow_embedding_dim > 0:
-            dow_emb = self.dow_embedding(
-                dow.long()
-            )  # (batch_size, in_steps, num_nodes, dow_embedding_dim)
-            time_features.append(dow_emb)
-        time_features = torch.cat(time_features, dim=-1)  # (batch_size, in_steps, num_nodes, time_dim)
-
-        y_target = self.decoder(time_features, time_enc, target_enc)
-
-        return y_target
-
     def forward(self, x, y):
         batch_size, _, num_nodes, _ = x.shape
         time_features, target_features = self.encoding(x)
 
-        # y_target = self.decoding(time_features, target_features, y)
-        # if self.num_patches != self.out_steps:
-        #     target_features = target_features.transpose(1, 2).reshape(batch_size, num_nodes, -1)
-        #     y_target = y_target.transpose(1, 2).reshape(batch_size, num_nodes, -1)
-        # target_features = torch.cat((target_features, y_target), dim=-1)  # (batch_size, in_steps, num_nodes, model_dim * 2)
-
-        if self.num_patches == self.out_steps:
-            target_features = target_features.transpose(1, 2).reshape(batch_size, num_nodes, -1)
+        target_features = target_features.transpose(1, 2).reshape(batch_size, num_nodes, -1)
 
         if self.spatial_embedding_dim > 0:
             node_emb = self.node_emb.unsqueeze(0).expand(batch_size, -1, -1)
