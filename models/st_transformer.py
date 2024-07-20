@@ -485,7 +485,7 @@ class Model(nn.Module):
 
         self.attn_layers_s = nn.ModuleList(
             [
-                SelfAttentionLayer(self.model_dim, self.feed_forward_dim, self.num_heads, self.dropout)
+                SelfAttentionLayer(self.target_dim, self.feed_forward_dim, self.num_heads, self.dropout)
                 for _ in range(self.num_layers)
             ]
         )
