@@ -460,7 +460,7 @@ class Model(nn.Module):
 
         if self.use_mixed_proj:
             self.output_proj = nn.Linear(
-                (self.num_patches) * self.target_dim * 2, self.out_steps * self.output_dim
+                (self.num_patches) * self.target_dim, self.out_steps * self.output_dim
             )
             # self.output_proj = nn.Linear(
             #     self.target_dim + self.spatial_embedding_dim, out_steps * output_dim
@@ -483,12 +483,12 @@ class Model(nn.Module):
         #      ]
         # )
 
-        self.attn_layers_s = nn.ModuleList(
-            [
-                SelfAttentionLayer(self.target_dim, self.feed_forward_dim, self.num_heads, self.dropout)
-                for _ in range(self.num_layers)
-            ]
-        )
+        # self.attn_layers_s = nn.ModuleList(
+        #     [
+        #         SelfAttentionLayer(self.target_dim, self.feed_forward_dim, self.num_heads, self.dropout)
+        #         for _ in range(self.num_layers)
+        #     ]
+        # )
 
         self.time_fc = nn.Linear(self.time_dim * self.num_patches, self.out_steps * (self.input_dim - 1))
 
@@ -534,10 +534,10 @@ class Model(nn.Module):
             torch.relu(self.node_emb @ self.node_emb.T), dim=-1
         )
 
-        s = target_features
+        # s = target_features
         for i in range(self.num_layers):
             time_features, target_features = self.merge_attn_layers[i](time_features, target_features, dim=1)
-            s = self.attn_layers_s[i](s, s, s, dim=2)
+        #     s = self.attn_layers_s[i](s, s, s, dim=2)
             # target_features = self.STGCNS[i](time_features, target_features, support)
             # target_features = self.gconvs[i](target_features, self.supports)
 
@@ -546,7 +546,7 @@ class Model(nn.Module):
         #     target_features = self.self_attn_layers_s[i](target_features, target_features, target_features, dim=2)
             # target_features = self.gconvs[i](target_features, self.supports)
         # (batch_size, in_steps, num_nodes, model_dim)
-        target_features = torch.cat([target_features, s], dim=-1)
+        # target_features = torch.cat([target_features, s], dim=-1)
         return time_features, target_features
 
     def forward(self, x, y):

@@ -18,7 +18,7 @@ os.environ['KMP_DUPLICATE_LIB_OK']='True'
 os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 
 if __name__ == '__main__':
-    fix_seed = 2024
+    fix_seed = 0
     random.seed(fix_seed)
     torch.manual_seed(fix_seed)
     np.random.seed(fix_seed)
@@ -35,12 +35,11 @@ if __name__ == '__main__':
 
     # path to modify
     # 1. data and adj
-    parser.add_argument('--adj_path', type=str, default=r'datasets/PEMS0/adj.npy', help='path of the adjmx')
-    parser.add_argument('--root_path', type=str, default='/kaggle/input/traffic-datasets/datasets/', help='root path of the data file')
+    parser.add_argument('--adj_path', type=str, default=r'datasets/PEMS08/adj.npy', help='path of the adjmx')
+    parser.add_argument('--root_path', type=str, default='/kaggle/input/d/bosun8769123/traffic-datasets/datasets/', help='root path of the data file')
     parser.add_argument('--data_path', type=str, default='PEMS08/data.npz', help='data file')
     # 2. model path
     parser.add_argument('--best_model_path', type=str, default='checkpoints/metr-la_el3/checkpoint.pth', help='the path of pretrain model')
-
 
     # data loader
     parser.add_argument('--data', type=str, required=False, default='PEMS08', help='dataset type')
