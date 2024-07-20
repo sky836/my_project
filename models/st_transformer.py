@@ -396,7 +396,7 @@ class STGCN(nn.Module):
         )  # B, cheb_k*in_dim, out_dim
         bias = torch.matmul(t, self.bias_pool)  # B, T, out_dim
         s_gconv = (
-                torch.einsum("btni,btio->btno", s_g, weights) + bias.unsqueeze(2)  # todo: bias check
+                torch.einsum("btni,btio->btno", s_g, weights) + bias.unsqueeze(2)
         )  # B, T, N, out_dim
         return s_gconv
 
