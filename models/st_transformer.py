@@ -401,6 +401,38 @@ class STGCN(nn.Module):
         return s_gconv
 
 
+class PatchMerging(nn.Module):
+    r""" Patch Merging Layer.
+
+    Args:
+        input_resolution (int): Resolution of input feature.
+        dim (int): Number of input channels.
+        norm_layer (nn.Module, optional): Normalization layer.  Default: nn.LayerNorm
+    """
+
+    def __init__(self, input_resolution, dim, norm_layer=nn.LayerNorm):
+        super().__init__()
+        self.input_resolution = input_resolution
+        self.dim = dim
+        self.reduction = nn.Linear(2 * dim, dim, bias=False)
+        self.norm = norm_layer(dim)
+
+    def forward(self, x, dim=-2):
+        """
+        x: (batch_size, in_steps, num_nodes, model_dim)
+        """
+        x = x.transpose(dim, -2)
+
+        x0 = x[..., 0::2, :]  # B N L/2 C
+        x1 = x[..., 1::2, :]  # B N L/2 C
+        x = torch.cat([x0, x1], -1)  # B N L/2 2*C
+
+        x = self.reduction(x)
+        x = self.norm(x)
+
+        return x.transpose(dim, -2)
+
+
 class Model(nn.Module):
     def __init__(self, configs, supports=None):
         super().__init__()
@@ -460,7 +492,7 @@ class Model(nn.Module):
 
         if self.use_mixed_proj:
             self.output_proj = nn.Linear(
-                self.target_dim, self.out_steps * self.output_dim
+                self.target_dim * 3, self.out_steps * self.output_dim
             )
             # self.output_proj = nn.Linear(
             #     self.target_dim + self.spatial_embedding_dim, out_steps * output_dim
@@ -476,17 +508,17 @@ class Model(nn.Module):
                 for _ in range(self.num_layers)
             ]
         )
-        self.proj = nn.Linear(self.num_patches * self.target_dim, self.target_dim)
-        self.STGCNS = nn.ModuleList(
+
+        self.downsample_s = nn.ModuleList(
             [
-                STGCN(self.time_dim, self.target_dim)
-                for _ in range(self.num_layers)
-             ]
+                PatchMerging(self.patch_size, self.target_dim)
+                for _ in range(2)
+            ]
         )
-        self.lns = nn.ModuleList(
+        self.downsample_t = nn.ModuleList(
             [
-                nn.LayerNorm((self.target_dim))
-                for _ in range(self.num_layers)
+                PatchMerging(self.patch_size, self.time_dim)
+                for _ in range(2)
             ]
         )
 
@@ -497,7 +529,7 @@ class Model(nn.Module):
         #     ]
         # )
 
-        self.time_fc = nn.Linear(self.time_dim * self.num_patches, self.out_steps * (self.input_dim - 1))
+        self.time_fc = nn.Linear(self.time_dim * 3, self.out_steps * (self.input_dim - 1))
 
     def encoding(self, x):
         # x: (batch_size, in_steps, num_nodes, input_dim+tod+dow=3)
@@ -539,6 +571,9 @@ class Model(nn.Module):
 
         for i in range(self.num_layers):
             time_features, target_features = self.merge_attn_layers[i](time_features, target_features, dim=1)
+            if i != 2:
+                time_features = self.downsample_t[i](time_features)
+                target_features = self.downsample_s[i](target_features, dim=1)
         #     s = self.attn_layers_s[i](s, s, s, dim=2)
             # target_features = self.STGCNS[i](time_features, target_features, support)
             # target_features = self.gconvs[i](target_features, self.supports)
@@ -556,17 +591,6 @@ class Model(nn.Module):
         time_features, target_features = self.encoding(x)
 
         target_features = target_features.transpose(1, 2).reshape(batch_size, num_nodes, -1)
-
-        target_features = self.proj(target_features)
-        support = torch.softmax(
-            torch.relu(self.node_emb @ self.node_emb.T), dim=-1
-        )
-
-        residual = target_features
-        for i in range(self.num_layers):
-            target_features = self.STGCNS[i](time_features[:, -1], target_features, support)
-            target_features = self.lns[i](target_features + residual)
-            residual = target_features
 
         out = target_features
         out = self.output_proj(out).view(batch_size, self.num_nodes, self.out_steps, self.output_dim)
