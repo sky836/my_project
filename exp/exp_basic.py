@@ -20,7 +20,7 @@ class Exp_Basic(object):
             'timeModel': timeModel
         }
         self.clip = None
-        # self.clip = 5
+        self.clip = 5
         self.device = self._acquire_device()
         self.cfg = cfg
         self.model = self._build_model().to(self.device)
