@@ -375,7 +375,7 @@ class STGCN(nn.Module):
                     torch.matmul(2 * support, graph_list[-1]) - graph_list[-2]
                 )
             for graph in graph_list:
-                s_g.append(torch.einsum("nm,btmc->btnc", graph, s))
+                s_g.append(torch.einsum("nm,bmc->bnc", graph, s))
         elif support.dim() == 3:
             graph_list = [
                 torch.eye(support.shape[1])
@@ -392,11 +392,11 @@ class STGCN(nn.Module):
         s_g = torch.cat(s_g, dim=-1)
 
         weights = torch.einsum(
-            "btd,dio->btio", t, self.weights_pool
+            "bd,dio->bio", t, self.weights_pool
         )  # B, cheb_k*in_dim, out_dim
         bias = torch.matmul(t, self.bias_pool)  # B, T, out_dim
         s_gconv = (
-                torch.einsum("btni,btio->btno", s_g, weights) + bias.unsqueeze(2)
+                torch.einsum("bni,bio->bno", s_g, weights) + bias
         )  # B, T, N, out_dim
         return s_gconv
 
@@ -476,12 +476,18 @@ class Model(nn.Module):
                 for _ in range(self.num_layers)
             ]
         )
-        # self.STGCNS = nn.ModuleList(
-        #     [
-        #         STGCN(self.time_dim, self.target_dim)
-        #         for _ in range(self.num_layers)
-        #      ]
-        # )
+        self.STGCNS = nn.ModuleList(
+            [
+                STGCN(self.time_dim, self.target_dim * self.num_patches)
+                for _ in range(self.num_layers)
+             ]
+        )
+        self.bns = nn.ModuleList(
+            [
+                nn.BatchNorm2d((self.num_patches) * self.target_dim)
+                for _ in range(self.num_layers)
+            ]
+        )
 
         # self.attn_layers_s = nn.ModuleList(
         #     [
@@ -530,11 +536,6 @@ class Model(nn.Module):
         target_features = torch.cat(target_features, dim=-1)  # (batch_size, in_steps, num_nodes, model_dim)
         time_features = torch.cat(time_features, dim=-1)  # (batch_size, in_steps, num_nodes, model_dim)
 
-        support = torch.softmax(
-            torch.relu(self.node_emb @ self.node_emb.T), dim=-1
-        )
-
-        # s = target_features
         for i in range(self.num_layers):
             time_features, target_features = self.merge_attn_layers[i](time_features, target_features, dim=1)
         #     s = self.attn_layers_s[i](s, s, s, dim=2)
@@ -554,6 +555,16 @@ class Model(nn.Module):
         time_features, target_features = self.encoding(x)
 
         target_features = target_features.transpose(1, 2).reshape(batch_size, num_nodes, -1)
+
+        support = torch.softmax(
+            torch.relu(self.node_emb @ self.node_emb.T), dim=-1
+        )
+
+        residual = target_features
+        for i in range(self.num_layers):
+            target_features = self.STGCNS[i](time_features[:, -1], target_features, support)
+            target_features = self.bns[i](target_features + residual)
+            residual = target_features
 
         out = target_features
         out = self.output_proj(out).view(batch_size, self.num_nodes, self.out_steps, self.output_dim)
