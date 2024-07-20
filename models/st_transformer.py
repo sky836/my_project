@@ -396,7 +396,7 @@ class STGCN(nn.Module):
         )  # B, cheb_k*in_dim, out_dim
         bias = torch.matmul(t, self.bias_pool)  # B, T, out_dim
         s_gconv = (
-                torch.einsum("bni,bio->bno", s_g, weights) + bias
+                torch.einsum("bni,bio->bno", s_g, weights) + bias.unsqueeze(1)
         )  # B, T, N, out_dim
         return s_gconv
 
@@ -460,7 +460,7 @@ class Model(nn.Module):
 
         if self.use_mixed_proj:
             self.output_proj = nn.Linear(
-                (self.num_patches) * self.target_dim, self.out_steps * self.output_dim
+                self.target_dim, self.out_steps * self.output_dim
             )
             # self.output_proj = nn.Linear(
             #     self.target_dim + self.spatial_embedding_dim, out_steps * output_dim
@@ -476,15 +476,16 @@ class Model(nn.Module):
                 for _ in range(self.num_layers)
             ]
         )
+        self.proj = nn.Linear(self.num_patches * self.target_dim, self.target_dim)
         self.STGCNS = nn.ModuleList(
             [
-                STGCN(self.time_dim, self.target_dim * self.num_patches)
+                STGCN(self.time_dim, self.target_dim)
                 for _ in range(self.num_layers)
              ]
         )
-        self.bns = nn.ModuleList(
+        self.lns = nn.ModuleList(
             [
-                nn.BatchNorm2d((self.num_patches) * self.target_dim)
+                nn.LayerNorm((self.target_dim))
                 for _ in range(self.num_layers)
             ]
         )
@@ -556,6 +557,7 @@ class Model(nn.Module):
 
         target_features = target_features.transpose(1, 2).reshape(batch_size, num_nodes, -1)
 
+        target_features = self.proj(target_features)
         support = torch.softmax(
             torch.relu(self.node_emb @ self.node_emb.T), dim=-1
         )
@@ -563,7 +565,7 @@ class Model(nn.Module):
         residual = target_features
         for i in range(self.num_layers):
             target_features = self.STGCNS[i](time_features[:, -1], target_features, support)
-            target_features = self.bns[i](target_features + residual)
+            target_features = self.lns[i](target_features + residual)
             residual = target_features
 
         out = target_features
