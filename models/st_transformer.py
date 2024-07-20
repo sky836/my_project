@@ -529,10 +529,11 @@ class Model(nn.Module):
 
         for i in range(self.num_layers):
             time_features, target_features = self.merge_attn_layers[i](time_features, target_features, dim=1)
-            target_features = self.STGCNS[i](time_features, target_features, support)
+            # target_features = self.STGCNS[i](time_features, target_features, support)
             # target_features = self.gconvs[i](target_features, self.supports)
 
-        # for i in range(self.num_layers):
+        for i in range(self.num_layers):
+            target_features = self.STGCNS[i](time_features, target_features, support)
         #     target_features = self.self_attn_layers_s[i](target_features, target_features, target_features, dim=2)
             # target_features = self.gconvs[i](target_features, self.supports)
         # (batch_size, in_steps, num_nodes, model_dim)
