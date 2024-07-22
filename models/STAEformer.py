@@ -167,9 +167,9 @@ class Model(nn.Module):
         self.feed_forward_dim = configs.feed_forward_dim
         self.model_dim = (
             self.input_embedding_dim
-            + self.tod_embedding_dim
+            + self.tod_embedding_dim * 2
             + self.dow_embedding_dim
-            + self.spatial_embedding_dim
+            + self.spatial_embedding_dim * 2
             + self.adaptive_embedding_dim
         )
         self.num_heads = configs.n_heads
@@ -207,6 +207,13 @@ class Model(nn.Module):
             ]
         )
 
+        self.series_embedding = nn.init.xavier_uniform_(
+            nn.Parameter(torch.empty(self.in_steps, self.spatial_embedding_dim))
+        )
+        self.time_embedding = nn.init.xavier_uniform_(
+            nn.Parameter(torch.empty(self.in_steps, self.tod_embedding_dim))
+        )
+
         # self.attn_layers_s = nn.ModuleList(
         #     [
         #         SelfAttentionLayer(self.model_dim, self.feed_forward_dim, self.num_heads, self.dropout)
@@ -216,7 +223,7 @@ class Model(nn.Module):
 
     def forward(self, x):
         # x: (batch_size, in_steps, num_nodes, input_dim+tod+dow=3)
-        batch_size = x.shape[0]
+        batch_size, in_steps, num_nodes, _ = x.shape
 
         if self.tod_embedding_dim > 0:
             tod = x[..., 1]
@@ -246,6 +253,16 @@ class Model(nn.Module):
                 size=(batch_size, *self.adaptive_embedding.shape)
             )
             features.append(adp_emb)
+        series_emb = self.series_embedding.expand(
+            size=(batch_size, num_nodes, *self.series_embedding.shape)
+        )
+        time_emb = self.time_embedding.expand(
+            size=(batch_size, num_nodes, *self.time_embedding.shape)
+        )
+        series_emb = series_emb.transpose(1, 2)
+        time_emb = time_emb.transpose(1, 2)
+        features.append(series_emb)
+        features.append(time_emb)
         x = torch.cat(features, dim=-1)  # (batch_size, in_steps, num_nodes, model_dim)
 
         for attn in self.attn_layers_t:
