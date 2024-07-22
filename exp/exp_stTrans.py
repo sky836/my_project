@@ -81,7 +81,7 @@ class Exp_stTrans(Exp_Basic):
                     outputs = vali_data.inverse_transform(outputs.reshape(-1, n_nodes)).reshape(batch_size,
                                                                                                 pred_len, n_nodes)
 
-                loss = criterion(outputs, y, 0.0)
+                loss = criterion(outputs, y)
                 total_loss.append(loss.item())
 
                 mae, mse, rmse, mape, mspe = metric(outputs, y)
