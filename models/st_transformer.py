@@ -519,7 +519,7 @@ class Model(nn.Module):
         #     ]
         # )
 
-        self.time_fc = nn.Linear(self.time_dim * self.num_patches, self.out_steps * (self.input_dim - 1))
+        # self.time_fc = nn.Linear(self.time_dim * self.num_patches, self.out_steps * (self.input_dim - 1))
 
     def encoding(self, x):
         # x: (batch_size, in_steps, num_nodes, input_dim+tod+dow=3)
@@ -594,7 +594,7 @@ class Model(nn.Module):
         out = out.transpose(1, 2)  # (batch_size, out_steps, num_nodes, output_dim)
 
         time = time_features.reshape(batch_size, -1)
-        time = self.time_fc(time).view(batch_size, self.out_steps, self.input_dim-1)
+        # time = self.time_fc(time).view(batch_size, self.out_steps, self.input_dim-1)
 
         return out, time
 
