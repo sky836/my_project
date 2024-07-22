@@ -59,7 +59,7 @@ class Exp_stTrans(Exp_Basic):
         return model_optim
 
     def _select_criterion(self):
-        criterion = masked_mae
+        criterion = nn.HuberLoss()
         return criterion
 
     def vali(self, vali_data, vali_loader, criterion):
@@ -184,7 +184,7 @@ class Exp_stTrans(Exp_Basic):
                     outputs = train_data.inverse_transform(outputs.reshape(-1, n_nodes)).reshape(batch_size,
                                                                                                  pred_len, n_nodes)
 
-                loss = criterion(outputs, y, 0.0) + criterion(time_pred, batch_y[:, :, 0, 1:])
+                loss = criterion(outputs, y) + masked_mae(time_pred, batch_y[:, :, 0, 1:])
                 train_loss.append(loss.item())
 
                 if (i + 1) % 100 == 0:
