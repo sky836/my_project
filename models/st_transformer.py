@@ -330,7 +330,7 @@ class MergeAttentionLayer(nn.Module):
         _, attn_target_no_softmax, value = self.attn_target(target_features, target_features, target_features)
 
         # merge_attn = self.w * attn_time_no_softmax.unsqueeze(1) + (1 - self.w) * attn_target_no_softmax
-        merge_attn = attn_target_no_softmax
+        merge_attn = attn_time_no_softmax.unsqueeze(1).repeat(1, attn_target_no_softmax.shape[1], 1, 1)
         # merge_attn = torch.softmax(merge_attn, dim=-1)
         target_features = merge_attn @ value  # (num_heads * batch_size, ..., tgt_length, head_dim)
         target_features = torch.cat(
