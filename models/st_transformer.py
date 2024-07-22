@@ -329,7 +329,8 @@ class MergeAttentionLayer(nn.Module):
         time_features, attn_time_no_softmax, _ = self.attn_time(time_features, time_features, time_features)
         _, attn_target_no_softmax, value = self.attn_target(target_features, target_features, target_features)
 
-        merge_attn = self.w * attn_time_no_softmax.unsqueeze(1) + (1 - self.w) * attn_target_no_softmax
+        # merge_attn = self.w * attn_time_no_softmax.unsqueeze(1) + (1 - self.w) * attn_target_no_softmax
+        merge_attn = attn_target_no_softmax
         # merge_attn = torch.softmax(merge_attn, dim=-1)
         target_features = merge_attn @ value  # (num_heads * batch_size, ..., tgt_length, head_dim)
         target_features = torch.cat(
@@ -455,7 +456,7 @@ class Model(nn.Module):
             + configs.spatial_embedding_dim
             + configs.adaptive_embedding_dim
         )
-        self.time_dim = (configs.tod_embedding_dim + configs.dow_embedding_dim)
+        self.time_dim = (configs.tod_embedding_dim * 2 + configs.dow_embedding_dim)
         self.target_dim = (configs.input_embedding_dim + configs.spatial_embedding_dim*2)
         self.num_heads = configs.n_heads
         self.num_layers = configs.num_layers
@@ -548,9 +549,9 @@ class Model(nn.Module):
                 dow.long()
             )  # (batch_size, in_steps, num_nodes, dow_embedding_dim)
             time_features.append(dow_emb[:, ::patch_size])
-        # time_features.append(self.time_embedding.expand(
-        #         size=(batch_size, *self.time_embedding.shape)
-        #     ))
+        time_features.append(self.time_embedding.expand(
+                size=(batch_size, *self.time_embedding.shape)
+            ))
         if self.adaptive_embedding_dim > 0:
             adp_emb = self.adaptive_embedding.expand(
                 size=(batch_size, *self.adaptive_embedding.shape)
