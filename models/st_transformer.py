@@ -456,7 +456,7 @@ class Model(nn.Module):
             + configs.adaptive_embedding_dim
         )
         self.time_dim = (configs.tod_embedding_dim * 2 + configs.dow_embedding_dim)
-        self.target_dim = (configs.input_embedding_dim + configs.adaptive_embedding_dim)
+        self.target_dim = (configs.input_embedding_dim + configs.spatial_embedding_dim*2)
         self.num_heads = configs.n_heads
         self.num_layers = configs.num_layers
         self.dec_layers = configs.d_layers
@@ -489,10 +489,13 @@ class Model(nn.Module):
         self.time_embedding = nn.init.xavier_uniform_(
             nn.Parameter(torch.empty(self.num_patches, self.tod_embedding_dim))
         )
+        self.series_embedding = nn.init.xavier_uniform_(
+            nn.Parameter(torch.empty(self.num_patches, self.spatial_embedding_dim))
+        )
 
         if self.use_mixed_proj:
             self.output_proj = nn.Linear(
-                self.target_dim * 3, self.out_steps * self.output_dim
+                self.target_dim * self.num_patches, self.out_steps * self.output_dim
             )
             # self.output_proj = nn.Linear(
             #     self.target_dim + self.spatial_embedding_dim, out_steps * output_dim
@@ -509,19 +512,6 @@ class Model(nn.Module):
             ]
         )
 
-        self.downsample_s = nn.ModuleList(
-            [
-                PatchMerging(self.patch_size, self.target_dim)
-                for _ in range(2)
-            ]
-        )
-        self.downsample_t = nn.ModuleList(
-            [
-                PatchMerging(self.patch_size, self.time_dim)
-                for _ in range(2)
-            ]
-        )
-
         # self.attn_layers_s = nn.ModuleList(
         #     [
         #         SelfAttentionLayer(self.target_dim, self.feed_forward_dim, self.num_heads, self.dropout)
@@ -529,11 +519,11 @@ class Model(nn.Module):
         #     ]
         # )
 
-        self.time_fc = nn.Linear(self.time_dim * 3, self.out_steps * (self.input_dim - 1))
+        self.time_fc = nn.Linear(self.time_dim * self.num_patches, self.out_steps * (self.input_dim - 1))
 
     def encoding(self, x):
         # x: (batch_size, in_steps, num_nodes, input_dim+tod+dow=3)
-        batch_size = x.shape[0]
+        batch_size, in_steps, num_nodes, _ = x.shape
 
         if self.tod_embedding_dim > 0:
             tod = x[..., 1]
@@ -566,14 +556,21 @@ class Model(nn.Module):
                 size=(batch_size, *self.adaptive_embedding.shape)
             )
             target_features.append(adp_emb)
+        node_emb = self.node_emb.expand(
+            size=(batch_size, self.num_patches, *self.node_emb.shape)
+        )
+        target_features.append(node_emb)
         target_features = torch.cat(target_features, dim=-1)  # (batch_size, in_steps, num_nodes, model_dim)
         time_features = torch.cat(time_features, dim=-1)  # (batch_size, in_steps, num_nodes, model_dim)
+        series_emb = self.series_embedding.expand(
+            size=(batch_size, num_nodes, *self.series_embedding.shape)
+        )
+        target_features = target_features.transpose(1, 2)
+        target_features = torch.cat([target_features, series_emb], dim=-1)
+        target_features = target_features.transpose(1, 2)
 
         for i in range(self.num_layers):
             time_features, target_features = self.merge_attn_layers[i](time_features, target_features, dim=1)
-            if i != 2:
-                time_features = self.downsample_t[i](time_features)
-                target_features = self.downsample_s[i](target_features, dim=1)
         #     s = self.attn_layers_s[i](s, s, s, dim=2)
             # target_features = self.STGCNS[i](time_features, target_features, support)
             # target_features = self.gconvs[i](target_features, self.supports)
