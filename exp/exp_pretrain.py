@@ -173,7 +173,7 @@ class Exp_Pretrain(Exp_Basic):
         lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(model_optim,
                                                                   mode='min', factor=0.1, patience=10,
                                                                   verbose=False, threshold=0.001, threshold_mode='rel',
-                                                                  cooldown=0, min_lr=2e-6, eps=1e-08)
+                                                                  cooldown=0, min_lr=1e-7, eps=1e-08)
 
         # tensorboard_path = os.path.join('./runs/{}/'.format(setting))
         # if not os.path.exists(tensorboard_path):
@@ -269,26 +269,25 @@ class Exp_Pretrain(Exp_Basic):
             print_log(log, "Epoch: {} cost time: {}".format(epoch + 1, time.time() - epoch_time))
             train_loss = np.average(train_loss)
 
-            print_log(log, "Epoch: {0}, Steps: {1} | Train Loss: {2:.7f}".format(
-                epoch + 1, train_steps, train_loss))
+            print_log(log, "Epoch: {0}, Steps: {1} | Train Loss: {2:.7f} | Best Loss: {3:.7f}".format(
+                epoch + 1, train_steps, train_loss, best_loss))
 
             lr_scheduler.step(train_loss)
             current_lr = model_optim.param_groups[0]['lr']
             print_log(log, "Epoch: {} current lr: {}".format(epoch + 1, current_lr))
 
-            print_log(log, f'Saving state ...')
-            torch.save({
-                'epoch': epoch,
-                'model_state_dict': self.model.state_dict(),
-                'optimizer_state_dict': model_optim.state_dict(),
-                'scheduler_state_dict': lr_scheduler.state_dict(),  # 如果使用了学习率调度器
-                'loss': train_loss,
-            }, path + '/' + 'checkpoint.pth')
-            torch.save(self.model.state_dict(), path + '/' + 'checkpoint.pth')
             writer.add_scalar(scalar_value=train_loss, global_step=epoch+1, tag='Loss/train')
 
             if train_loss < best_loss:
                 best_loss = train_loss
+                print_log(log, f'Saving state ...')
+                torch.save({
+                    'epoch': epoch,
+                    'model_state_dict': self.model.state_dict(),
+                    'optimizer_state_dict': model_optim.state_dict(),
+                    'scheduler_state_dict': lr_scheduler.state_dict(),  # 如果使用了学习率调度器
+                    'loss': train_loss,
+                }, path + '/' + 'checkpoint.pth')
 
             if epoch == self.args.train_epochs - 1:
                 break
