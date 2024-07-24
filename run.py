@@ -29,24 +29,24 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Taformer')
 
     # basic config
-    parser.add_argument('--task_name', type=str, required=False, default='stTrans',
+    parser.add_argument('--task_name', type=str, required=False, default='Pretrain',
                         help='task name, options:[forcast, STEP, timeLinear, GWNET, Pretrain, STAEformer, stTrans]')
     parser.add_argument('--is_training', type=int, required=False, default=1, help='status')
-    parser.add_argument('--model', type=str, required=False, default='stTrans',
+    parser.add_argument('--model', type=str, required=False, default='Pretrain',
                         help='model name, options: [Taformer, STEP, timeLinear, GWNET, '
                              'Pretrain, VanillaTransformer, SingleNodeGWNET, STAEformer, stTrans, timeModel]')
 
     # path to modify
     # 1. data and adj
     parser.add_argument('--adj_path', type=str, default=r'datasets/PEMS08/adj.npy', help='path of the adjmx')
-    parser.add_argument('--root_path', type=str, default='/kaggle/input/d/skypeter/traffic-datasets/datasets/', help='root path of the data file')
-    parser.add_argument('--data_path', type=str, default='PEMS03/data.npz', help='data file')
+    parser.add_argument('--root_path', type=str, default='/kaggle/input/d/bosun8769123/traffic-datasets/datasets/', help='root path of the data file')
+    parser.add_argument('--data_path', type=str, default='PEMS08/data.npz', help='data file')
     # 2. model path
     parser.add_argument('--best_model_path', type=str, default='checkpoints/metr-la_el3/checkpoint.pth', help='the path of pretrain model')
 
     # data loader
-    parser.add_argument('--data', type=str, required=False, default='PEMS03', help='dataset type')
-    parser.add_argument('--num_nodes', type=int, required=False, default=358, help='the nodes of dataset')
+    parser.add_argument('--data', type=str, required=False, default='PEMS08', help='dataset type')
+    parser.add_argument('--num_nodes', type=int, required=False, default=170, help='the nodes of dataset')
     parser.add_argument('--freq', type=str, default='t',
                         help='freq for time features encoding, options:[s:secondly, t:minutely, h:hourly, d:daily, b:business days, w:weekly, m:monthly], you can also use more detailed freq like 15min or 3h')
     parser.add_argument('--checkpoints', type=str, default='./checkpoints/', help='location of model checkpoints')
@@ -98,6 +98,7 @@ if __name__ == '__main__':
     parser.add_argument('--time_channel', type=int, default=4, help='The channel of time inputs')
     parser.add_argument('--target_channel', type=int, default=5, help='The channel of target inputs')
     parser.add_argument('--pretrain_layers', type=int, default=1, help='num of pretrain decoder layers')
+    parser.add_argument('--mask_ratio', type=float, default=0.25, help='mask ratio of pretrain')
 
     # optimization
     parser.add_argument('--num_workers', type=int, default=1, help='data loader num workers')
@@ -105,7 +106,7 @@ if __name__ == '__main__':
     parser.add_argument('--train_epochs', type=int, default=200, help='train epochs')
     parser.add_argument('--batch_size', type=int, default=16, help='batch size of train input data')
     parser.add_argument('--patience', type=int, default=30, help='early stopping patience')
-    parser.add_argument('--learning_rate', type=float, default=0.001, help='optimizer learning rate')
+    parser.add_argument('--learning_rate', type=float, default=0.005, help='optimizer learning rate')
     parser.add_argument('--weight_decay', type=float, default=0.0003, help='optimizer weight_decay')
     parser.add_argument('--des', type=str, default='Exp', help='exp description')
     parser.add_argument('--loss', type=str, default='MSE', help='loss function')

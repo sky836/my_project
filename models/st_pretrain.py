@@ -78,46 +78,46 @@ class Model(nn.Module):
         self.time_fc = nn.Linear(self.time_dim * self.num_patches, self.out_steps * (self.input_dim - 1))
 
         # ===================================pretrain special=============================================
+        self.mask_ratio = configs.mask_ratio
         self.mask_token_T = nn.Parameter(torch.zeros(1, 1, self.time_dim - self.tod_embedding_dim))
         self.mask_token_S = nn.Parameter(torch.zeros(1, 1, 1, self.target_dim - self.spatial_embedding_dim))
         self.decoder = MergeAttentionLayer(self.time_dim, self.target_dim, self.feed_forward_dim, self.num_heads, self.dropout)
-        self.pretrain_output_T = nn.Linear(self.target_dim * self.num_patches, self.in_steps * (self.input_dim - 1))
-        self.pretrain_output_S = nn.Linear(self.time_dim * self.num_patches, self.in_steps * self.output_dim)
+        self.pretrain_output_T = nn.Linear(self.time_dim, self.patch_size * (self.input_dim - 1))
+        self.pretrain_output_S = nn.Linear(self.target_dim, self.patch_size)
 
-    def maskgenerator(self, x, mask_ratio, l):
+    def maskgenerator(self, device, mask_ratio, l):
         len_keep = int(l * (1 - mask_ratio))
-        noise = torch.rand(l, device=x.device)
+        noise = torch.rand(l, device=device)
         # sort noise for each sample
-        ids_shuffle = torch.argsort(noise, dim=2)  # ascend: small is keep, large is remove
-        ids_restore = torch.argsort(ids_shuffle, dim=2)
+        ids_shuffle = torch.argsort(noise)  # ascend: small is keep, large is removed
+        ids_restore = torch.argsort(ids_shuffle)
         # keep the first subset
         ids_keep = ids_shuffle[:len_keep]
         masked_token_index = ids_shuffle[len_keep:]
-        x_unmasked = x[:, ids_keep]
 
         # generate the binary mask: 0 is keep, 1 is remove
-        mask = torch.ones([l], device=x.device)
+        mask = torch.ones([l], device=device)
         mask[:len_keep] = 0
         # unshuffle to get the binary mask
         mask = torch.gather(mask, dim=0, index=ids_restore)
 
-        return x_unmasked, mask, ids_restore, masked_token_index
+        return mask, ids_restore, masked_token_index, ids_keep
 
-    def random_masking(self, time, target, mask_ratio_T, mask_ratio_S):
+    def random_masking(self, time, target, mask_ratio):
         """
         target: [batch_size, n_patches, n_nodes, d_model], sequence
         time: [batch_size, n_patches, d_model], sequence
         """
         batch_size, n_patches, n_nodes, target_dim = target.shape
         _, _, time_dim = time.shape
+        device = time.device
 
-        time_unmasked, time_mask, ids_restore_T, masked_token_index_T = \
-            self.maskgenerator(time, mask_ratio_T, time.shape[1])
-        target_unmasked, target_mask, ids_restore_S, masked_token_index_S = \
-            self.maskgenerator(target, mask_ratio_S, target.shape[1])
+        mask, ids_restore, masked_token_index, ids_keep = self.maskgenerator(device, mask_ratio, n_patches)
 
-        return time_unmasked, time_mask, ids_restore_T, masked_token_index_T, \
-               target_unmasked, target_mask, ids_restore_S, masked_token_index_S
+        time_unmasked = time[:, ids_keep]
+        target_unmasked = target[:, ids_keep]
+
+        return mask, ids_restore, masked_token_index, time_unmasked, target_unmasked
 
     def encoding(self, x):
         # x: (batch_size, in_steps, num_nodes, input_dim+tod+dow=3)
@@ -161,36 +161,33 @@ class Model(nn.Module):
         target_features = torch.cat([target_features, series_emb], dim=-1)
         target_features = target_features.transpose(1, 2)
 
-        time_unmasked, time_mask, ids_restore_T, masked_token_index_T, \
-        target_unmasked, target_mask, ids_restore_S, masked_token_index_S = \
-            self.random_masking(time_features, target_features, self.mask_ratio_T, self.mask_ratio_S)
+        mask, ids_restore, masked_token_index, time_unmasked, target_unmasked = \
+            self.random_masking(time_features, target_features, self.mask_ratio)
 
         for i in range(self.num_layers):
             time_unmasked, target_unmasked = self.merge_attn_layers[i](time_unmasked, target_unmasked, dim=1)
 
-        return time_unmasked, time_mask, ids_restore_T, masked_token_index_T, \
-               target_unmasked, target_mask, ids_restore_S, masked_token_index_S
+        return mask, ids_restore, masked_token_index, time_unmasked, target_unmasked
 
-    def decoding(self, time_unmasked, ids_restore_T, masked_token_index_T,
-                 target_unmasked, ids_restore_S, masked_token_index_S):
+    def decoding(self, ids_restore, masked_token_index, time_unmasked, target_unmasked):
         batch_size, _, num_nodes, _ = target_unmasked.shape
-        time_masked = self.mask_token_T.expand(batch_size, self.num_patches, self.time_dim)
-        target_masked = self.mask_token_S.expand(batch_size, self.num_patches, self.num_nodes, self.target_dim)
+        time_masked = self.mask_token_T.repeat(batch_size, self.num_patches-time_unmasked.shape[1], 1)
+        target_masked = self.mask_token_S.repeat(batch_size, self.num_patches-target_unmasked.shape[1], self.num_nodes, 1)
 
         time_feat = self.time_embedding.unsqueeze(0).expand(batch_size, *self.time_embedding.shape)
         series_feat = self.series_embedding.unsqueeze(0).unsqueeze(0).expand(batch_size, self.num_nodes, *self.series_embedding.shape)
 
-        time_feat = time_feat[:, masked_token_index_T]
-        series_feat = series_feat[:, :, masked_token_index_S]
+        time_feat = time_feat[:, masked_token_index]
+        series_feat = series_feat[:, :, masked_token_index]
 
-        time_masked = torch.cat([time_masked,  time_feat])
-        target_masked = torch.cat([target_masked, series_feat])
+        time_masked = torch.cat([time_masked,  time_feat], dim=-1)
+        target_masked = torch.cat([target_masked.transpose(1, 2), series_feat], dim=-1).transpose(1, 2)
 
-        time_full = torch.cat([time_unmasked, time_masked], dim=-1)
-        target_full = torch.cat([target_unmasked, target_masked], dim=-1)
+        time_full = torch.cat([time_unmasked, time_masked], dim=1)
+        target_full = torch.cat([target_unmasked, target_masked], dim=1)
 
-        ids_restore_T = ids_restore_T.unsqueeze(0).unsqueeze(-1)
-        ids_restore_S = ids_restore_S.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
+        ids_restore_T = ids_restore.unsqueeze(0).unsqueeze(-1)
+        ids_restore_S = ids_restore.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
         ids_restore_T = ids_restore_T.expand(batch_size, self.num_patches, self.time_dim)
         ids_restore_S = ids_restore_S.expand(batch_size, self.num_patches, self.num_nodes, self.target_dim)
 
@@ -199,20 +196,15 @@ class Model(nn.Module):
 
         time_full, target_full = self.decoder(time_full, target_full, dim=1)
 
-        time_full = time_full.reshape(batch_size, -1)
-        target_full = target_full.transpose(1, 2).reshape(batch_size, num_nodes, -1)
-
-        time_full = self.pretrain_output_T(time_full).view(batch_size, self.in_steps, self.input_dim-1)
-        target_full = self.pretrain_output_S(target_full).view(batch_size, self.num_nodes, self.in_steps, self.output_dim)
-        target_full = target_full.transpose(1, 2)
+        time_full = self.pretrain_output_T(time_full).view(batch_size, self.num_patches, self.patch_size * (self.input_dim - 1))
+        target_full = self.pretrain_output_S(target_full).view(batch_size, self.num_patches, self.num_nodes, self.patch_size)
 
         return time_full, target_full
 
     def forward(self, x):
         # x: (batch_size, in_steps, num_nodes, input_dim+tod+dow=3)
-        time_unmasked, time_mask, ids_restore_T, masked_token_index_T, \
-        target_unmasked, target_mask, ids_restore_S, masked_token_index_S = self.encoding(x)
+        mask, ids_restore, masked_token_index, time_unmasked, target_unmasked = self.encoding(x)
 
-        time_full, target_full = self.decoding(time_unmasked, ids_restore_T, masked_token_index_T,
-                                               target_unmasked, ids_restore_S, masked_token_index_S)
+        time_full, target_full = self.decoding(ids_restore, masked_token_index, time_unmasked, target_unmasked)
+        return time_full, target_full, mask
 

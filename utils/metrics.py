@@ -24,7 +24,7 @@ def MSE(preds, labels, null_val=np.nan):
     mask = mask.float()
     mask /= torch.mean((mask))
     mask = torch.where(torch.isnan(mask), torch.zeros_like(mask), mask)
-    loss = torch.abs(preds - labels) ** 2
+    loss = (preds - labels) ** 2
     loss = loss * mask
     loss = torch.where(torch.isnan(loss), torch.zeros_like(loss), loss)
     return torch.mean(loss)
