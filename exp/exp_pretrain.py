@@ -184,6 +184,7 @@ class Exp_Pretrain(Exp_Basic):
 
         step = 0
         time_now = time.time()
+        best_loss = np.Inf
 
         maes, maes_time, maes_target = [], [], []
         preds = []
@@ -201,6 +202,9 @@ class Exp_Pretrain(Exp_Basic):
 
             self.model.train()
             epoch_time = time.time()
+
+            if best_loss < 5:
+                epoch = self.args.train_epochs - 1
 
             for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(train_loader):
                 iter_count += 1
@@ -272,7 +276,7 @@ class Exp_Pretrain(Exp_Basic):
             current_lr = model_optim.param_groups[0]['lr']
             print_log(log, "Epoch: {} current lr: {}".format(epoch + 1, current_lr))
 
-            print_log(log, f'Saving model ...')
+            print_log(log, f'Saving state ...')
             torch.save({
                 'epoch': epoch,
                 'model_state_dict': self.model.state_dict(),
@@ -282,12 +286,18 @@ class Exp_Pretrain(Exp_Basic):
             }, path + '/' + 'checkpoint.pth')
             torch.save(self.model.state_dict(), path + '/' + 'checkpoint.pth')
             writer.add_scalar(scalar_value=train_loss, global_step=epoch+1, tag='Loss/train')
-            # adjust_learning_rate(model_optim, epoch + 1, self.args)
+
+            if train_loss < best_loss:
+                best_loss = train_loss
+
+            if epoch == self.args.train_epochs - 1:
+                break
+
         # ==================保存训练过程中间结果===================================================
-        folder_path = './train_results/' + setting + '/'
-        if not os.path.exists(folder_path):
-            os.makedirs(folder_path)
-        # folder_path = '/kaggle/working/'  # 使用kaggle跑实验时的路径
+        # folder_path = './train_results/' + setting + '/'
+        # if not os.path.exists(folder_path):
+        #     os.makedirs(folder_path)
+        folder_path = '/kaggle/working/'  # 使用kaggle跑实验时的路径
         preds = np.array(preds)
         trues = np.array(trues)
         x_marks = np.array(x_marks)
