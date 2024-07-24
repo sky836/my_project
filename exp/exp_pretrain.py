@@ -183,6 +183,7 @@ class Exp_Pretrain(Exp_Basic):
         writer = SummaryWriter(log_dir=tensorboard_path)
 
         step = 0
+        time_now = time.time()
 
         maes, maes_time, maes_target = [], [], []
         preds = []
