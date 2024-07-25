@@ -36,7 +36,9 @@ class Exp_stTrans(Exp_Basic):
         model = self.model_dict[self.args.model].Model(self.args).float()
 
         if self.args.is_finetune:
-            msg = model.load_state_dict(torch.load(self.args.best_model_path), strict=False)
+            checkpoints = torch.load(self.args.best_model_path)
+            model_state_dict = checkpoints['model_state_dict']
+            msg = model.load_state_dict(model_state_dict, strict=False)
             print(msg)
 
         return model

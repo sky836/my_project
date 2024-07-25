@@ -29,10 +29,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Taformer')
 
     # basic config
-    parser.add_argument('--task_name', type=str, required=False, default='Pretrain',
+    parser.add_argument('--task_name', type=str, required=False, default='stTrans',
                         help='task name, options:[forcast, STEP, timeLinear, GWNET, Pretrain, STAEformer, stTrans]')
     parser.add_argument('--is_training', type=int, required=False, default=1, help='status')
-    parser.add_argument('--model', type=str, required=False, default='Pretrain',
+    parser.add_argument('--model', type=str, required=False, default='stTrans',
                         help='model name, options: [Taformer, STEP, timeLinear, GWNET, '
                              'Pretrain, VanillaTransformer, SingleNodeGWNET, STAEformer, stTrans, timeModel]')
 
@@ -42,7 +42,7 @@ if __name__ == '__main__':
     parser.add_argument('--root_path', type=str, default='/kaggle/input/d/bosun8769123/traffic-datasets/datasets/', help='root path of the data file')
     parser.add_argument('--data_path', type=str, default='PEMS08/data.npz', help='data file')
     # 2. model path
-    parser.add_argument('--best_model_path', type=str, default='checkpoints/metr-la_el3/checkpoint.pth', help='the path of pretrain model')
+    parser.add_argument('--best_model_path', type=str, default='/kaggle/input/pretrain-25-001/checkpoint.pth', help='the path of pretrain model')
 
     # data loader
     parser.add_argument('--data', type=str, required=False, default='PEMS08', help='dataset type')
@@ -66,7 +66,7 @@ if __name__ == '__main__':
     parser.add_argument('--addaptadj', type=bool, default=True, help='if use adaptive adjacency matrices in GCN or not')
 
     # finetune task
-    parser.add_argument('--is_finetune', type=bool, default=False, help='if use pretrain model to finetune')
+    parser.add_argument('--is_finetune', type=bool, default=True, help='if use pretrain model to finetune')
 
     # model define
     parser.add_argument('--feed_forward_dim', type=int, default=256, help='')
