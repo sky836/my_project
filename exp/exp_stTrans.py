@@ -41,6 +41,15 @@ class Exp_stTrans(Exp_Basic):
             msg = model.load_state_dict(model_state_dict, strict=False)
             print(msg)
 
+            # 冻结对应的参数
+            for name, param in model.named_parameters():
+                if name in model_state_dict:
+                    param.requires_grad = False
+            for _, param in model.time_fc.named_parameters():
+                param.requires_grad = True
+            for _, param in model.output_proj.named_parameters():
+                param.requires_grad = True
+
         return model
 
     def asym_adj(self, adj):
