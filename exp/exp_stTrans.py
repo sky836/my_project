@@ -197,7 +197,7 @@ class Exp_stTrans(Exp_Basic):
 
                 loss1 = criterion(outputs, y)
                 noisy = torch.rand(batch_size, pred_len, n_nodes).to(self.device)
-                noisy = noisy * loss1
+                noisy = noisy * loss1 * 0.5
                 outputs = outputs + noisy
                 loss = criterion(outputs, y) + criterion(time_pred, batch_y[:, :, 0, 1:])
                 train_loss.append(loss.item())
