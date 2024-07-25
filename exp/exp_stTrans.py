@@ -112,6 +112,24 @@ class Exp_stTrans(Exp_Basic):
         self.model.train()
         return total_loss, maes, mses, rmses, mapes, mspes, preds, trues
 
+    def addNoisy(self, outputs, labels):
+        # outputs [batch_size, pred_len, n_nodes]
+        batch_size, pred_len, n_nodes = outputs.shape
+        mask = (labels != 0.0)
+        mask = mask.float()
+        mask /= torch.mean((mask))
+        mask = torch.where(torch.isnan(mask), torch.zeros_like(mask), mask)
+        loss = torch.abs(outputs - labels)
+        loss = loss * mask
+        loss = torch.where(torch.isnan(loss), torch.zeros_like(loss), loss)
+        loss = torch.mean(loss, dim=1)  # b, n
+        loss = loss.unsqueeze(1).expand(batch_size, pred_len, n_nodes)
+        noisy = torch.rand(batch_size, pred_len, n_nodes)
+        noisy = -loss/2 + loss*noisy
+        outputs = outputs + noisy
+        return outputs
+
+
     def train(self, setting):
         train_data, train_loader = self._get_data(flag='train')
         vali_data, vali_loader = self._get_data(flag='val')
@@ -195,10 +213,7 @@ class Exp_stTrans(Exp_Basic):
                     outputs = train_data.inverse_transform(outputs.reshape(-1, n_nodes)).reshape(batch_size,
                                                                                                  pred_len, n_nodes)
 
-                loss1 = criterion(outputs, y)
-                noisy = torch.rand(batch_size, pred_len, n_nodes).to(self.device)
-                noisy = noisy * loss1 * 0.5
-                outputs = outputs + noisy
+                outputs = self.addNoisy(outputs, y)
                 loss = criterion(outputs, y) + criterion(time_pred, batch_y[:, :, 0, 1:])
                 train_loss.append(loss.item())
 
