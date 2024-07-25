@@ -36,19 +36,19 @@ class Exp_stTrans(Exp_Basic):
         model = self.model_dict[self.args.model].Model(self.args).float()
 
         if self.args.is_finetune:
-            checkpoints = torch.load(self.args.best_model_path)
-            model_state_dict = checkpoints['model_state_dict']
+            model_state_dict = torch.load(self.args.best_model_path)
+            # model_state_dict = checkpoints['model_state_dict']
             msg = model.load_state_dict(model_state_dict, strict=False)
             print(msg)
 
-            # 冻结对应的参数
-            for name, param in model.named_parameters():
-                if name in model_state_dict:
-                    param.requires_grad = False
-            for _, param in model.time_fc.named_parameters():
-                param.requires_grad = True
-            for _, param in model.output_proj.named_parameters():
-                param.requires_grad = True
+            # # 冻结对应的参数
+            # for name, param in model.named_parameters():
+            #     if name in model_state_dict:
+            #         param.requires_grad = False
+            # for _, param in model.time_fc.named_parameters():
+            #     param.requires_grad = True
+            # for _, param in model.output_proj.named_parameters():
+            #     param.requires_grad = True
 
         return model
 
@@ -190,11 +190,15 @@ class Exp_stTrans(Exp_Basic):
                 outputs = outputs.squeeze(-1)
                 y = batch_y[:, self.args.label_len:, :, 0]
 
+                batch_size, pred_len, n_nodes = outputs.shape
                 if train_data.scale and self.args.inverse:
-                    batch_size, pred_len, n_nodes = outputs.shape
                     outputs = train_data.inverse_transform(outputs.reshape(-1, n_nodes)).reshape(batch_size,
                                                                                                  pred_len, n_nodes)
 
+                loss1 = criterion(outputs, y)
+                noisy = torch.rand(batch_size, pred_len, n_nodes).to(self.device)
+                noisy = noisy * loss1
+                outputs = outputs + noisy
                 loss = criterion(outputs, y) + criterion(time_pred, batch_y[:, :, 0, 1:])
                 train_loss.append(loss.item())
 
