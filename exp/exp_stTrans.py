@@ -124,7 +124,7 @@ class Exp_stTrans(Exp_Basic):
         loss = torch.where(torch.isnan(loss), torch.zeros_like(loss), loss)
         loss = torch.mean(loss, dim=1)  # b, n
         loss = loss.unsqueeze(1).expand(batch_size, pred_len, n_nodes)
-        noisy = torch.rand(batch_size, pred_len, n_nodes)
+        noisy = torch.rand(batch_size, pred_len, n_nodes).to(self.device)
         noisy = -loss/2 + loss*noisy
         outputs = outputs + noisy
         return outputs
