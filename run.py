@@ -55,9 +55,9 @@ if __name__ == '__main__':
                         help='Adding time features to the data. options: [0, 1], 0 stands for 2 features. 1 stands for 4 features')
 
     # forecasting task
-    parser.add_argument('--seq_len', type=int, default=12, help='input sequence length')
+    parser.add_argument('--seq_len', type=int, default=36, help='input sequence length')
     parser.add_argument('--label_len', type=int, default=0, help='start token length')
-    parser.add_argument('--pred_len', type=int, default=12, help='prediction sequence length')
+    parser.add_argument('--pred_len', type=int, default=36, help='prediction sequence length')
     parser.add_argument('--inverse', action='store_true', help='inverse output data', default=True)
 
     # pretrain task
@@ -66,7 +66,7 @@ if __name__ == '__main__':
     parser.add_argument('--addaptadj', type=bool, default=True, help='if use adaptive adjacency matrices in GCN or not')
 
     # finetune task
-    parser.add_argument('--is_finetune', type=bool, default=True, help='if use pretrain model to finetune')
+    parser.add_argument('--is_finetune', type=bool, default=False, help='if use pretrain model to finetune')
 
     # model define
     parser.add_argument('--feed_forward_dim', type=int, default=256, help='')
@@ -93,7 +93,7 @@ if __name__ == '__main__':
     parser.add_argument('--embed', type=str, default='fixed',
                         help='time features encoding, options:[timeF, fixed, learned]')
     parser.add_argument('--output_attention', type=bool, default=False, help='whether to output attention in ecoder')
-    parser.add_argument('--patch_size', type=int, default=1, help='The size of one patch')
+    parser.add_argument('--patch_size', type=int, default=6, help='The size of one patch')
     parser.add_argument('--label_patch_size', type=int, default=1, help='The size of one  decoder input patch')
     parser.add_argument('--time_channel', type=int, default=4, help='The channel of time inputs')
     parser.add_argument('--target_channel', type=int, default=5, help='The channel of target inputs')
