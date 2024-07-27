@@ -59,14 +59,6 @@ class Model(nn.Module):
             nn.Parameter(torch.empty(self.num_patches, self.spatial_embedding_dim))
         )
 
-        if self.use_mixed_proj:
-            self.output_proj = nn.Linear(
-                self.target_dim * self.num_patches, self.out_steps * self.output_dim
-            )
-        else:
-            self.temporal_proj = nn.Linear(self.in_steps, self.out_steps)
-            self.output_proj = nn.Linear(self.target_dim * 2, self.output_dim)
-
         # ===================================encoding special=============================================
         self.merge_attn_layers = nn.ModuleList(
             [
@@ -74,8 +66,6 @@ class Model(nn.Module):
                 for _ in range(self.num_layers)
             ]
         )
-
-        self.time_fc = nn.Linear(self.time_dim * self.num_patches, self.out_steps * (self.input_dim - 1))
 
         # ===================================pretrain special=============================================
         self.mask_ratio = configs.mask_ratio
