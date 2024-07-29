@@ -41,7 +41,7 @@ if __name__ == '__main__':
     # path to modify
     # 1. data and adj
     parser.add_argument('--adj_path', type=str, default=r'datasets/PEMS08/adj.npy', help='path of the adjmx')
-    parser.add_argument('--root_path', type=str, default='/kaggle/input/d/bosun8769123/traffic-datasets/datasets/', help='root path of the data file')
+    parser.add_argument('--root_path', type=str, default='/kaggle/input/d/skypeter/traffic-datasets/datasets/', help='root path of the data file')
     parser.add_argument('--data_path', type=str, default='PEMS08/data.npz', help='data file')
     # 2. model path
     parser.add_argument('--best_model_path', type=str, default='/kaggle/input/sttrans-pretrain-50-001-pems08/checkpoint.pth', help='the path of pretrain model')
@@ -68,7 +68,7 @@ if __name__ == '__main__':
     parser.add_argument('--addaptadj', type=bool, default=True, help='if use adaptive adjacency matrices in GCN or not')
 
     # finetune task
-    parser.add_argument('--is_finetune', type=bool, default=False, help='if use pretrain model to finetune')
+    parser.add_argument('--is_finetune', type=bool, default=True, help='if use pretrain model to finetune')
 
     # model define
     parser.add_argument('--feed_forward_dim', type=int, default=256, help='')
@@ -108,8 +108,8 @@ if __name__ == '__main__':
     parser.add_argument('--train_epochs', type=int, default=200, help='train epochs')
     parser.add_argument('--batch_size', type=int, default=16, help='batch size of train input data')
     parser.add_argument('--patience', type=int, default=30, help='early stopping patience')
-    parser.add_argument('--learning_rate', type=float, default=0.001, help='optimizer learning rate')
-    parser.add_argument('--weight_decay', type=float, default=0.0003, help='optimizer weight_decay')
+    parser.add_argument('--learning_rate', type=float, default=0.0005, help='optimizer learning rate')
+    parser.add_argument('--weight_decay', type=float, default=0.0006, help='optimizer weight_decay')
     parser.add_argument('--des', type=str, default='Exp', help='exp description')
     parser.add_argument('--loss', type=str, default='MSE', help='loss function')
     parser.add_argument('--lradj', type=str, default='type1', help='adjust learning rate')

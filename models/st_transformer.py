@@ -470,7 +470,6 @@ class Model(nn.Module):
             self.supports = []
         self.supports_len = 0
 
-        # self.input_proj = nn.Linear(input_dim, input_embedding_dim)
         self.patch_emb = PatchEmbed(seq_len=self.in_steps, patch_size=self.patch_size,
                                     in_chans=self.input_dim, embed_dim=self.input_embedding_dim, norm_layer=nn.LayerNorm)
         self.num_patches = self.patch_emb.num_patches
@@ -498,9 +497,6 @@ class Model(nn.Module):
             self.output_proj = nn.Linear(
                 self.target_dim * self.num_patches, self.out_steps * self.output_dim
             )
-            # self.output_proj = nn.Linear(
-            #     self.target_dim + self.spatial_embedding_dim, out_steps * output_dim
-            # )
         else:
             self.temporal_proj = nn.Linear(self.in_steps, self.out_steps)
             self.output_proj = nn.Linear(self.target_dim*2, self.output_dim)
@@ -512,13 +508,6 @@ class Model(nn.Module):
                 for _ in range(self.num_layers)
             ]
         )
-
-        # self.attn_layers_s = nn.ModuleList(
-        #     [
-        #         SelfAttentionLayer(self.target_dim, self.feed_forward_dim, self.num_heads, self.dropout)
-        #         for _ in range(self.num_layers)
-        #     ]
-        # )
 
         self.time_fc = nn.Linear(self.time_dim * self.num_patches, self.out_steps * (self.input_dim - 1))
 
@@ -534,7 +523,6 @@ class Model(nn.Module):
             dow = dow[..., 0]
         x = x[..., : self.input_dim]
 
-        # x = self.input_proj(x)  # (batch_size, in_steps, num_nodes, input_embedding_dim)
         x = self.patch_emb(x)
         patch_size = self.patch_emb.patch_size
         target_features = [x]
@@ -572,16 +560,7 @@ class Model(nn.Module):
 
         for i in range(self.num_layers):
             time_features, target_features = self.merge_attn_layers[i](time_features, target_features, dim=1)
-        #     s = self.attn_layers_s[i](s, s, s, dim=2)
-            # target_features = self.STGCNS[i](time_features, target_features, support)
-            # target_features = self.gconvs[i](target_features, self.supports)
 
-        # for i in range(self.num_layers):
-        #     target_features = self.STGCNS[i](time_features, target_features, support)
-        #     target_features = self.self_attn_layers_s[i](target_features, target_features, target_features, dim=2)
-            # target_features = self.gconvs[i](target_features, self.supports)
-        # (batch_size, in_steps, num_nodes, model_dim)
-        # target_features = torch.cat([target_features, s], dim=-1)
         return time_features, target_features
 
     def forward(self, x, y):
