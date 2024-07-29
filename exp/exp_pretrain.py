@@ -122,12 +122,10 @@ class Exp_Pretrain(Exp_Basic):
         loss_target = loss_target * mask0
         loss_target = loss_target.mean(dim=-1)  # [batch_size, n_nodes, num_patches] mean loss per patch
         loss_target = torch.where(torch.isnan(loss_target), torch.zeros_like(loss_target), loss_target)
-        # loss_target = (loss_target * mask_target).sum() / mask_target.sum()
-        loss_target = torch.mean(loss_target)
+        loss_target = (loss_target * mask_target).sum() / mask_target.sum()
 
         loss_time = torch.abs(time_outputs - x_time).mean(dim=-1)
-        # loss_time = (loss_time * mask_time).sum() / mask_time.sum()
-        loss_time = torch.mean(loss_time)
+        loss_time = (loss_time * mask_time).sum() / mask_time.sum()
 
         loss = loss_time + loss_target
 
@@ -245,6 +243,10 @@ class Exp_Pretrain(Exp_Basic):
 
                 loss, loss_time, loss_target = self.forward_loss(x_time, x_target, time_outputs, target_outputs, mask_record)
                 train_loss.append(loss.item())
+
+                for name, param in self.model.named_parameters():
+                    if param.grad is None:
+                        print(name)
 
                 if (i + 1) % 100 == 0:
                     speed = (time.time() - time_now) / iter_count
