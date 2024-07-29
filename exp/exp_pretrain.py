@@ -122,10 +122,12 @@ class Exp_Pretrain(Exp_Basic):
         loss_target = loss_target * mask0
         loss_target = loss_target.mean(dim=-1)  # [batch_size, n_nodes, num_patches] mean loss per patch
         loss_target = torch.where(torch.isnan(loss_target), torch.zeros_like(loss_target), loss_target)
-        loss_target = (loss_target * mask_target).sum() / mask_target.sum()
+        # loss_target = (loss_target * mask_target).sum() / mask_target.sum()
+        loss_target = torch.mean(loss_target)
 
         loss_time = torch.abs(time_outputs - x_time).mean(dim=-1)
-        loss_time = (loss_time * mask_time).sum() / mask_time.sum()
+        # loss_time = (loss_time * mask_time).sum() / mask_time.sum()
+        loss_time = torch.mean(loss_time)
 
         loss = loss_time + loss_target
 
