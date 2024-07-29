@@ -17,8 +17,6 @@ import time
 import warnings
 import numpy as np
 
-# 设置环境变量以获取更多调试信息
-os.environ['TORCH_DISTRIBUTED_DEBUG'] = 'INFO'
 warnings.filterwarnings('ignore')
 
 

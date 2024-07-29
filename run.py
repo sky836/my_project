@@ -16,6 +16,8 @@ import numpy as np
 import os
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
+# 设置环境变量以获取更多调试信息
+os.environ['TORCH_DISTRIBUTED_DEBUG'] = 'INFO'
 
 if __name__ == '__main__':
     seed = torch.randint(10000, (1,))  # set random seed here
