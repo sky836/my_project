@@ -208,7 +208,8 @@ class Exp_Pretrain(Exp_Basic):
                 model_optim.zero_grad()
                 batch_x = batch_x.float().to(self.device)
 
-                time_outputs, target_outputs, mask_record = self.model(batch_x)
+                time_outputs, target_outputs = self.model(batch_x)
+                mask_record = torch.ones([self.args.seq_len], device=self.device)
                 """
                 time_outputs, y_time: [batch_size, num_patches, patch_size * 2]
                 target_outputs, y_target: [batch_size, num_patches, n_nodes, patch_size * 1]
