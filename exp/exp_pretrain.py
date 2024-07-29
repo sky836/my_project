@@ -17,6 +17,8 @@ import time
 import warnings
 import numpy as np
 
+# 设置环境变量以获取更多调试信息
+os.environ['TORCH_DISTRIBUTED_DEBUG'] = 'INFO'
 warnings.filterwarnings('ignore')
 
 
@@ -243,31 +245,6 @@ class Exp_Pretrain(Exp_Basic):
 
                 loss, loss_time, loss_target = self.forward_loss(x_time, x_target, time_outputs, target_outputs, mask_record)
                 train_loss.append(loss.item())
-
-                # for name, param in self.model.named_parameters():
-                #     if param.grad is None:
-                #         print(name)
-                # 用一个列表存储所有参数的名字
-                param_names = []
-
-                for name, param in self.model.named_parameters():
-                    param_names.append(name)
-
-                # 列出未接收到梯度的参数索引
-                unused_param_indices = [
-                    26, 27, 42, 43, 44, 45, 46, 47, 48, 49,
-                    69, 70, 85, 86, 87, 88, 89, 90, 91, 92,
-                    112, 113, 128, 129, 130, 131, 132, 133,
-                    134, 135, 155, 156, 171, 172, 173, 174,
-                    175, 176, 177, 178
-                ]
-
-                # 打印未接收到梯度的参数名字
-                for idx in unused_param_indices:
-                    print(f"Parameter index {idx}: {param_names[idx]}")
-
-                # 设置环境变量以获取更多调试信息
-                os.environ['TORCH_DISTRIBUTED_DEBUG'] = 'INFO'
 
                 if (i + 1) % 100 == 0:
                     speed = (time.time() - time_now) / iter_count
