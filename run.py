@@ -29,17 +29,17 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Taformer')
 
     # basic config
-    parser.add_argument('--task_name', type=str, required=False, default='stTrans',
+    parser.add_argument('--task_name', type=str, required=False, default='Pretrain',
                         help='task name, options:[forcast, STEP, timeLinear, GWNET, Pretrain, STAEformer, stTrans]')
     parser.add_argument('--is_training', type=int, required=False, default=1, help='status')
-    parser.add_argument('--model', type=str, required=False, default='stTrans',
+    parser.add_argument('--model', type=str, required=False, default='Pretrain',
                         help='model name, options: [Taformer, STEP, timeLinear, GWNET, '
                              'Pretrain, VanillaTransformer, SingleNodeGWNET, STAEformer, stTrans, timeModel]')
 
     # path to modify
     # 1. data and adj
     parser.add_argument('--adj_path', type=str, default=r'datasets/PEMS08/adj.npy', help='path of the adjmx')
-    parser.add_argument('--root_path', type=str, default='/kaggle/input/d/skypeter/traffic-datasets/datasets/', help='root path of the data file')
+    parser.add_argument('--root_path', type=str, default='/kaggle/input/d/bosun8769123/traffic-datasets/datasets/', help='root path of the data file')
     parser.add_argument('--data_path', type=str, default='PEMS08/data.npz', help='data file')
     # 2. model path
     parser.add_argument('--best_model_path', type=str, default='/kaggle/input/sttrans-pretrain-50-001-pems08/checkpoint.pth', help='the path of pretrain model')
@@ -55,9 +55,9 @@ if __name__ == '__main__':
                         help='Adding time features to the data. options: [0, 1], 0 stands for 2 features. 1 stands for 4 features')
 
     # forecasting task
-    parser.add_argument('--seq_len', type=int, default=36, help='input sequence length')
+    parser.add_argument('--seq_len', type=int, default=12*24*7, help='input sequence length')
     parser.add_argument('--label_len', type=int, default=0, help='start token length')
-    parser.add_argument('--pred_len', type=int, default=36, help='prediction sequence length')
+    parser.add_argument('--pred_len', type=int, default=12, help='prediction sequence length')
     parser.add_argument('--inverse', action='store_true', help='inverse output data', default=True)
 
     # pretrain task
@@ -93,7 +93,7 @@ if __name__ == '__main__':
     parser.add_argument('--embed', type=str, default='fixed',
                         help='time features encoding, options:[timeF, fixed, learned]')
     parser.add_argument('--output_attention', type=bool, default=False, help='whether to output attention in ecoder')
-    parser.add_argument('--patch_size', type=int, default=6, help='The size of one patch')
+    parser.add_argument('--patch_size', type=int, default=12, help='The size of one patch')
     parser.add_argument('--label_patch_size', type=int, default=1, help='The size of one  decoder input patch')
     parser.add_argument('--time_channel', type=int, default=4, help='The channel of time inputs')
     parser.add_argument('--target_channel', type=int, default=5, help='The channel of target inputs')
