@@ -95,7 +95,7 @@ if __name__ == '__main__':
     parser.add_argument('--embed', type=str, default='fixed',
                         help='time features encoding, options:[timeF, fixed, learned]')
     parser.add_argument('--output_attention', type=bool, default=False, help='whether to output attention in ecoder')
-    parser.add_argument('--patch_size', type=int, default=1, help='The size of one patch')
+    parser.add_argument('--patch_size', type=int, default=12, help='The size of one patch')
     parser.add_argument('--label_patch_size', type=int, default=1, help='The size of one  decoder input patch')
     parser.add_argument('--time_channel', type=int, default=4, help='The channel of time inputs')
     parser.add_argument('--target_channel', type=int, default=5, help='The channel of target inputs')
