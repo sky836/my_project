@@ -196,5 +196,5 @@ class Model(nn.Module):
         mask, ids_restore, masked_token_index, time_unmasked, target_unmasked = self.encoding(x)
 
         time_full, target_full = self.decoding(ids_restore, masked_token_index, time_unmasked, target_unmasked)
-        return time_full, target_full
+        return time_full, target_full, mask
 
