@@ -37,11 +37,6 @@ class Exp_Pretrain(Exp_Basic):
 
         # msg = model.load_state_dict(torch.load(self.args.best_model_path), strict=True)
         # print(msg)
-
-        if self.args.use_multi_gpu and self.args.use_gpu:
-            # nn.DataParallel: 这是 PyTorch 中的一个模块，用于在多个 GPU 上并行地运行模型。
-            # 它将输入模型封装在一个新的 DataParallel 模型中。
-            model = nn.DataParallel(model, device_ids=self.args.device_ids)
         return model
 
     def asym_adj(self, adj):
@@ -179,8 +174,9 @@ class Exp_Pretrain(Exp_Basic):
         # if not os.path.exists(tensorboard_path):
         #     os.makedirs(tensorboard_path)
         # tensorboard_path = '/mnt/workspace/'  # 使用阿里天池跑实验时的路径
-        tensorboard_path = '/kaggle/working/'  # 使用kaggle跑实验时的路径
-        writer = SummaryWriter(log_dir=tensorboard_path)
+        if self.device == 0:
+            tensorboard_path = '/kaggle/working/'  # 使用kaggle跑实验时的路径
+            writer = SummaryWriter(log_dir=tensorboard_path)
 
         step = 0
         time_now = time.time()
@@ -231,7 +227,7 @@ class Exp_Pretrain(Exp_Basic):
                     x_target = train_data.inverse_transform(x_target.reshape(-1, n_nodes)).reshape(
                         batch_size, seq_len, n_nodes)
 
-                if epoch == self.args.train_epochs - 1:
+                if epoch == self.args.train_epochs - 1 and self.device == 0:
                     batch_x_mark = batch_x_mark.detach().cpu().numpy()
                     masks.append(mask_record.detach().cpu().numpy())
                     x_marks.append(batch_x_mark)
@@ -258,7 +254,7 @@ class Exp_Pretrain(Exp_Basic):
                     iter_count = 0
                     time_now = time.time()
 
-                if epoch == self.args.train_epochs - 1:
+                if epoch == self.args.train_epochs - 1 and self.device == 0:
                     maes_time.append(loss_time.detach().item())
                     maes_target.append(loss_target.detach().item())
                     maes.append(loss.detach().item())
@@ -266,21 +262,24 @@ class Exp_Pretrain(Exp_Basic):
                 loss.backward()
                 model_optim.step()
 
-            print_log(log, "Epoch: {} cost time: {}".format(epoch + 1, time.time() - epoch_time))
+            if self.device == 0:
+                print_log(log, "Epoch: {} cost time: {}".format(epoch + 1, time.time() - epoch_time))
             train_loss = np.average(train_loss)
 
-            print_log(log, "Epoch: {0}, Steps: {1} | Train Loss: {2:.7f} | Best Loss: {3:.7f}".format(
+            if self.device == 0:
+                print_log(log, "Epoch: {0}, Steps: {1} | Train Loss: {2:.7f} | Best Loss: {3:.7f}".format(
                 epoch + 1, train_steps, train_loss, best_loss))
 
-            lr_scheduler.step(train_loss)
-            current_lr = model_optim.param_groups[0]['lr']
-            print_log(log, "Epoch: {} current lr: {}".format(epoch + 1, current_lr))
-
-            writer.add_scalar(scalar_value=train_loss, global_step=epoch+1, tag='Loss/train')
+            if self.device == 0:
+                lr_scheduler.step(train_loss)
+                current_lr = model_optim.param_groups[0]['lr']
+                print_log(log, "Epoch: {} current lr: {}".format(epoch + 1, current_lr))
+                writer.add_scalar(scalar_value=train_loss, global_step=epoch+1, tag='Loss/train')
 
             if train_loss < best_loss:
                 best_loss = train_loss
-                print_log(log, f'Saving state ...')
+                if self.device == 0:
+                    print_log(log, f'Saving state ...')
                 torch.save({
                     'epoch': epoch,
                     'model_state_dict': self.model.state_dict(),
@@ -293,35 +292,36 @@ class Exp_Pretrain(Exp_Basic):
                 break
 
         # ==================保存训练过程中间结果===================================================
-        # folder_path = './train_results/' + setting + '/'
-        # if not os.path.exists(folder_path):
-        #     os.makedirs(folder_path)
-        folder_path = '/kaggle/working/'  # 使用kaggle跑实验时的路径
-        preds = np.array(preds)
-        trues = np.array(trues)
-        x_marks = np.array(x_marks)
-        maes = np.array(maes)
-        maes_time = np.array(maes_time)
-        maes_target = np.array(maes_target)
-        masks = np.array(masks)
+        if self.device == 0:
+            # folder_path = './train_results/' + setting + '/'
+            # if not os.path.exists(folder_path):
+            #     os.makedirs(folder_path)
+            folder_path = '/kaggle/working/'  # 使用kaggle跑实验时的路径
+            preds = np.array(preds)
+            trues = np.array(trues)
+            x_marks = np.array(x_marks)
+            maes = np.array(maes)
+            maes_time = np.array(maes_time)
+            maes_target = np.array(maes_target)
+            masks = np.array(masks)
 
-        print('shape:', preds.shape, trues.shape, x_marks.shape, maes.shape, maes_time.shape, maes_target.shape, masks.shape)
-        preds = preds.reshape((-1, preds.shape[-2], preds.shape[-1]))
-        trues = trues.reshape((-1, trues.shape[-2], trues.shape[-1]))
-        x_marks = x_marks.reshape((-1, x_marks.shape[-2], x_marks.shape[-1]))
-        masks = masks.reshape((-1, masks.shape[-1]))
-        print('shape:', preds.shape, trues.shape, x_marks.shape, maes.shape, maes_time.shape, maes_target.shape, masks.shape)
+            print('shape:', preds.shape, trues.shape, x_marks.shape, maes.shape, maes_time.shape, maes_target.shape, masks.shape)
+            preds = preds.reshape((-1, preds.shape[-2], preds.shape[-1]))
+            trues = trues.reshape((-1, trues.shape[-2], trues.shape[-1]))
+            x_marks = x_marks.reshape((-1, x_marks.shape[-2], x_marks.shape[-1]))
+            masks = masks.reshape((-1, masks.shape[-1]))
+            print('shape:', preds.shape, trues.shape, x_marks.shape, maes.shape, maes_time.shape, maes_target.shape, masks.shape)
 
-        np.save(folder_path + 'pred.npy', preds)
-        np.save(folder_path + 'true.npy', trues)
-        np.save(folder_path + 'x_marks.npy', x_marks)
-        np.save(folder_path + 'maes.npy', maes)
-        np.save(folder_path + 'maes_time.npy', maes_time)
-        np.save(folder_path + 'maes_target.npy', maes_target)
-        np.save(folder_path + 'masks.npy', masks)
-        # ==================保存训练过程中间结果===================================================
+            np.save(folder_path + 'pred.npy', preds)
+            np.save(folder_path + 'true.npy', trues)
+            np.save(folder_path + 'x_marks.npy', x_marks)
+            np.save(folder_path + 'maes.npy', maes)
+            np.save(folder_path + 'maes_time.npy', maes_time)
+            np.save(folder_path + 'maes_target.npy', maes_target)
+            np.save(folder_path + 'masks.npy', masks)
+            # ==================保存训练过程中间结果===================================================
 
-        best_model_path = path + 'checkpoint.pth'
-        self.model.load_state_dict(torch.load(best_model_path))
+            best_model_path = path + 'checkpoint.pth'
+            self.model.load_state_dict(torch.load(best_model_path))
 
         return self.model
