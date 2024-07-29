@@ -27,7 +27,7 @@ class Exp_Basic(object):
         if self.args.use_multi_gpu and self.args.use_gpu:
             # nn.DataParallel: 这是 PyTorch 中的一个模块，用于在多个 GPU 上并行地运行模型。
             # 它将输入模型封装在一个新的 DataParallel 模型中。
-            self.model = DDP(self.model, device_ids=[self.device], find_unused_parameters=True)
+            self.model = DDP(self.model, device_ids=[self.device])
 
     def _build_model(self):
         raise NotImplementedError

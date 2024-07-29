@@ -166,7 +166,7 @@ PEMS08:
   milestones: [20, 30]
   lr_decay_rate: 0.1
   batch_size: 16
-  max_epochs: 100
+  max_epochs: 200
   early_stop: 30
   use_cl: False
   cl_step_size: 2500
@@ -181,8 +181,8 @@ PEMS08:
     input_embedding_dim: 24
     tod_embedding_dim: 24
     dow_embedding_dim: 24
-    spatial_embedding_dim: 0
-    adaptive_embedding_dim: 80
+    spatial_embedding_dim: 40
+    adaptive_embedding_dim: 0
     feed_forward_dim: 256
     num_heads: 4
     num_layers: 3
