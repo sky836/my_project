@@ -244,9 +244,9 @@ class Exp_Pretrain(Exp_Basic):
                 loss, loss_time, loss_target = self.forward_loss(x_time, x_target, time_outputs, target_outputs, mask_record)
                 train_loss.append(loss.item())
 
-                for name, param in self.model.named_parameters():
-                    if param.grad is None:
-                        print(name)
+                # for name, param in self.model.named_parameters():
+                #     if param.grad is None:
+                #         print(name)
 
                 if (i + 1) % 100 == 0:
                     speed = (time.time() - time_now) / iter_count
