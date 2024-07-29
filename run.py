@@ -31,10 +31,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Taformer')
 
     # basic config
-    parser.add_argument('--task_name', type=str, required=False, default='Pretrain',
+    parser.add_argument('--task_name', type=str, required=False, default='stTrans',
                         help='task name, options:[forcast, STEP, timeLinear, GWNET, Pretrain, STAEformer, stTrans]')
     parser.add_argument('--is_training', type=int, required=False, default=1, help='status')
-    parser.add_argument('--model', type=str, required=False, default='Pretrain',
+    parser.add_argument('--model', type=str, required=False, default='stTrans',
                         help='model name, options: [Taformer, STEP, timeLinear, GWNET, '
                              'Pretrain, VanillaTransformer, SingleNodeGWNET, STAEformer, stTrans, timeModel]')
 
@@ -57,7 +57,7 @@ if __name__ == '__main__':
                         help='Adding time features to the data. options: [0, 1], 0 stands for 2 features. 1 stands for 4 features')
 
     # forecasting task
-    parser.add_argument('--seq_len', type=int, default=12*24*7, help='input sequence length')
+    parser.add_argument('--seq_len', type=int, default=12, help='input sequence length')
     parser.add_argument('--label_len', type=int, default=0, help='start token length')
     parser.add_argument('--pred_len', type=int, default=12, help='prediction sequence length')
     parser.add_argument('--inverse', action='store_true', help='inverse output data', default=True)
