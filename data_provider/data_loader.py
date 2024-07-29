@@ -277,7 +277,7 @@ class Dataset_PEMS08(Dataset):
         data_y = data
 
         if self.scale:
-            train_data = data[border1s[self.set_type]:border2s[self.set_type]]
+            train_data = data[border1s[0]:border2s[0]]
             self.scaler = StandardScaler(mean=train_data.mean(), std=train_data.std())
             print('mean:', train_data.mean())
             print('std:', train_data.std())
