@@ -186,8 +186,9 @@ class Model(nn.Module):
 
         time_full, target_full = self.decoder(time_full, target_full, dim=1)
 
-        time_full = self.pretrain_output_T(time_full).view(batch_size, self.num_patches, self.patch_size * (self.input_dim - 1))
-        target_full = self.pretrain_output_S(target_full).view(batch_size, self.num_patches, self.num_nodes, self.patch_size)
+        if self.mode == "pre-train":
+            time_full = self.pretrain_output_T(time_full).view(batch_size, self.num_patches, self.patch_size * (self.input_dim - 1))
+            target_full = self.pretrain_output_S(target_full).view(batch_size, self.num_patches, self.num_nodes, self.patch_size)
 
         return time_full, target_full
 

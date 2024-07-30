@@ -2,6 +2,7 @@ import os
 
 import numpy as np
 import pandas as pd
+import torch
 
 # from sklearn.preprocessing import StandardScaler
 from utils.tools import StandardScaler
@@ -337,6 +338,114 @@ class Dataset_PEMS08(Dataset):
 
     def inverse_transform(self, data):
         return self.scaler.inverse_transform(data)
+
+
+class Dataset_Pretrain_Forecast(Dataset):
+    def __init__(self, root_path, data_path, flag='train', size=None, scale=True, time_to_feature=1, type='flow'):
+        if size == None:
+            self.seq_len = 12
+            self.label_len = 12*24*7
+            self.pred_len = 12
+        else:
+            self.seq_len = size[0]
+            self.label_len = size[1]
+            self.pred_len = size[2]
+        # init
+        assert flag in ['train', 'test', 'val']
+        type_map = {'train': 0, 'val': 1, 'test': 2}
+        self.type = type
+        self.set_type = type_map[flag]
+
+        self.scale = scale
+        self.time_to_feature = time_to_feature
+
+        self.root_path = root_path
+        self.data_path = data_path
+        self.__read_data__()
+
+    def __read_data__(self):
+        data_file_path = os.path.join(self.root_path, self.data_path)
+        data = np.load(data_file_path)['data'].astype(np.float32)
+
+        time = data[..., 1:]
+        data = data[..., 0]
+
+        num_train = round(len(data) * 0.6)
+        num_test = round(len(data) * 0.2)
+        num_vali = len(data) - num_train - num_test
+        border1s = [0, num_train - self.seq_len, len(data) - num_test - self.seq_len]
+        border2s = [num_train, num_train + num_vali, len(data)]
+        border1 = border1s[self.set_type]
+        border2 = border2s[self.set_type]
+
+        data_y = data
+
+        if self.scale:
+            train_data = data[border1s[0]:border2s[0]]
+            self.scaler = StandardScaler(mean=train_data.mean(), std=train_data.std())
+            print('mean:', train_data.mean())
+            print('std:', train_data.std())
+            # 对数据进行标准化
+            data = self.scaler.transform(data)
+        else:
+            data = data
+
+        num_samples, num_nodes = data.shape
+        if self.time_to_feature == 0:
+            processed_data = np.concatenate([np.expand_dims(data, axis=-1), time], axis=-1)
+            processed_datay = np.concatenate([np.expand_dims(data_y, axis=-1), time], axis=-1)
+        elif self.time_to_feature == 1:
+            steps_per_hour = 12
+            steps_per_day = 24
+            steps_per_month = 30
+            steps_per_year = 12
+            feature_list = [np.expand_dims(data[..., 0], axis=-1)]
+            moh = [i % steps_per_hour / (steps_per_hour - 1) for i in range(data.shape[0])]
+            moh_tiled = np.tile(moh, [1, num_nodes, 1]).transpose((2, 1, 0)) - 0.5
+            hod = [(i // steps_per_hour) % steps_per_day / (steps_per_day - 1) for i in range(data.shape[0])]
+            hod_tiled = np.tile(hod, [1, num_nodes, 1]).transpose((2, 1, 0)) - 0.5
+            dom = [(i // (steps_per_hour*steps_per_day)) % steps_per_month / (steps_per_month - 1) for i in range(data.shape[0])]
+            dom_tiled = np.tile(dom, [1, num_nodes, 1]).transpose((2, 1, 0)) - 0.5
+            moy = [(i // (steps_per_hour*steps_per_day*steps_per_month)) % steps_per_year / (steps_per_year - 1) for i in range(data.shape[0])]
+            moy_tiled = np.tile(moy, [1, num_nodes, 1]).transpose((2, 1, 0)) - 0.5
+
+            feature_list.append(moh_tiled)
+            feature_list.append(hod_tiled)
+            feature_list.append(dom_tiled)
+            feature_list.append(moy_tiled)
+
+            processed_data = np.concatenate(feature_list, axis=-1)
+            processed_datay = np.concatenate([np.expand_dims(data_y, axis=-1), moy_tiled, hod_tiled, dom_tiled, moy_tiled], axis=-1)
+        else:
+            processed_data = data
+
+        self.data_x = processed_data[border1:border2]
+        self.data_y = processed_datay[border1:border2]
+
+    def __getitem__(self, index):
+        s_begin = index
+        s_end = s_begin + self.seq_len
+        r_begin = s_end
+        r_end = r_begin + self.pred_len
+
+        seq_x = self.data_x[s_begin:s_end]
+        seq_y = self.data_y[r_begin:r_end]
+
+        l_begin = s_end - self.label_len
+        if l_begin < 0:
+            seq_long = torch.zeros(self.label_len, self.data_x.shape[1], self.data_x.shape[2])
+            seq_long[-self.seq_len:] = seq_x
+        else:
+            seq_long = self.data_x[l_begin:s_end]
+
+        return seq_x, seq_y, seq_long
+
+    def __len__(self):
+        return len(self.data_x) - self.seq_len - self.pred_len + 1
+
+    def inverse_transform(self, data):
+        return self.scaler.inverse_transform(data)
+
 
 if __name__ == '__main__':
     root_path = '../datasets/'

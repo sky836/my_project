@@ -457,7 +457,7 @@ class Model(nn.Module):
             + configs.adaptive_embedding_dim
         )
         self.time_dim = (configs.tod_embedding_dim * 2 + configs.dow_embedding_dim)
-        self.target_dim = (configs.input_embedding_dim + configs.spatial_embedding_dim*2)
+        self.target_dim = (configs.input_embedding_dim + configs.spatial_embedding_dim)
         self.num_heads = configs.n_heads
         self.num_layers = configs.num_layers
         self.dec_layers = configs.d_layers
@@ -545,10 +545,10 @@ class Model(nn.Module):
                 size=(batch_size, *self.adaptive_embedding.shape)
             )
             target_features.append(adp_emb)
-        node_emb = self.node_emb.expand(
-            size=(batch_size, self.num_patches, *self.node_emb.shape)
-        )
-        target_features.append(node_emb)
+        # node_emb = self.node_emb.expand(
+        #     size=(batch_size, self.num_patches, *self.node_emb.shape)
+        # )
+        # target_features.append(node_emb)
         target_features = torch.cat(target_features, dim=-1)  # (batch_size, in_steps, num_nodes, model_dim)
         time_features = torch.cat(time_features, dim=-1)  # (batch_size, in_steps, num_nodes, model_dim)
         series_emb = self.series_embedding.expand(

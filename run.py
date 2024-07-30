@@ -68,7 +68,7 @@ if __name__ == '__main__':
     parser.add_argument('--addaptadj', type=bool, default=True, help='if use adaptive adjacency matrices in GCN or not')
 
     # finetune task
-    parser.add_argument('--is_finetune', type=bool, default=True, help='if use pretrain model to finetune')
+    parser.add_argument('--is_finetune', type=bool, default=False, help='if use pretrain model to finetune')
 
     # model define
     parser.add_argument('--feed_forward_dim', type=int, default=256, help='')

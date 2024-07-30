@@ -1,7 +1,7 @@
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 
-from data_provider.data_loader import Dataset_h5, Dataset_PEMS04, Dataset_PEMS08
+from data_provider.data_loader import Dataset_h5, Dataset_PEMS04, Dataset_PEMS08, Dataset_Pretrain_Forecast
 
 data_dict = {
     'METRLA': Dataset_PEMS08,
@@ -10,6 +10,7 @@ data_dict = {
     'PEMS08': Dataset_PEMS08,
     'PEMS03': Dataset_PEMS08,
     'PEMS07': Dataset_PEMS08,
+    'Pretrain_Forecast': Dataset_Pretrain_Forecast
 }
 
 
