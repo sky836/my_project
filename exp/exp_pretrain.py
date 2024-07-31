@@ -280,13 +280,13 @@ class Exp_Pretrain(Exp_Basic):
                 best_loss = train_loss
                 if self.device == 0:
                     print_log(log, f'Saving state ...')
-                torch.save({
-                    'epoch': epoch,
-                    'model_state_dict': self.model.state_dict(),
-                    'optimizer_state_dict': model_optim.state_dict(),
-                    'scheduler_state_dict': lr_scheduler.state_dict(),  # 如果使用了学习率调度器
-                    'loss': train_loss,
-                }, path + '/' + 'checkpoint.pth')
+                    torch.save({
+                        'epoch': epoch,
+                        'model_state_dict': self.model.state_dict(),
+                        'optimizer_state_dict': model_optim.state_dict(),
+                        'scheduler_state_dict': lr_scheduler.state_dict(),  # 如果使用了学习率调度器
+                        'loss': train_loss,
+                    }, path + '/' + 'checkpoint.pth')
 
             if epoch == self.args.train_epochs - 1:
                 break

@@ -45,7 +45,7 @@ if __name__ == '__main__':
     parser.add_argument('--root_path', type=str, default='/kaggle/input/traffic-datasets/datasets/', help='root path of the data file')
     parser.add_argument('--data_path', type=str, default='PEMS08/data.npz', help='data file')
     # 2. model path
-    parser.add_argument('--best_model_path', type=str, default='checkpoints/pretrain_50_001/checkpoint.pth', help='the path of pretrain model')
+    parser.add_argument('--best_model_path', type=str, default='checkpoints/checkpoint.pth', help='the path of pretrain model')
 
     # data loader
     parser.add_argument('--data', type=str, required=False, default='PEMS08', help='dataset type')
