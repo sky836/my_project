@@ -10,6 +10,7 @@ from exp.exp_STAEformer import Exp_ST
 from exp.exp_timeLinear import Exp_TimeLinear
 from exp.exp_GWNET import Exp_GWNET
 from exp.exp_pretrain import Exp_Pretrain
+from exp.exp_stTrans_mae import Exp_stTrans_mae
 # from utils.print_args import print_args
 import random
 import numpy as np
@@ -31,20 +32,20 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Taformer')
 
     # basic config
-    parser.add_argument('--task_name', type=str, required=False, default='stTrans',
-                        help='task name, options:[forcast, STEP, timeLinear, GWNET, Pretrain, STAEformer, stTrans]')
+    parser.add_argument('--task_name', type=str, required=False, default='Pretrain',
+                        help='task name, options:[forcast, STEP, timeLinear, GWNET, Pretrain, STAEformer, stTrans, stTrans_mae]')
     parser.add_argument('--is_training', type=int, required=False, default=1, help='status')
-    parser.add_argument('--model', type=str, required=False, default='stTrans',
+    parser.add_argument('--model', type=str, required=False, default='Pretrain',
                         help='model name, options: [Taformer, STEP, timeLinear, GWNET, '
-                             'Pretrain, VanillaTransformer, SingleNodeGWNET, STAEformer, stTrans, timeModel]')
+                             'Pretrain, VanillaTransformer, SingleNodeGWNET, STAEformer, stTrans, timeModel, stTrans_mae]')
 
     # path to modify
     # 1. data and adj
     parser.add_argument('--adj_path', type=str, default=r'datasets/PEMS08/adj.npy', help='path of the adjmx')
-    parser.add_argument('--root_path', type=str, default='/kaggle/input/d/skypeter/traffic-datasets/datasets/', help='root path of the data file')
+    parser.add_argument('--root_path', type=str, default='/kaggle/input/traffic-datasets/datasets/', help='root path of the data file')
     parser.add_argument('--data_path', type=str, default='PEMS08/data.npz', help='data file')
     # 2. model path
-    parser.add_argument('--best_model_path', type=str, default='/kaggle/input/sttrans-pretrain-50-001-pems08/checkpoint.pth', help='the path of pretrain model')
+    parser.add_argument('--best_model_path', type=str, default='checkpoints/pretrain_50_001/checkpoint.pth', help='the path of pretrain model')
 
     # data loader
     parser.add_argument('--data', type=str, required=False, default='PEMS08', help='dataset type')
@@ -58,7 +59,7 @@ if __name__ == '__main__':
 
     # forecasting task
     parser.add_argument('--seq_len', type=int, default=12, help='input sequence length')
-    parser.add_argument('--label_len', type=int, default=0, help='start token length')
+    parser.add_argument('--label_len', type=int, default=12*24*7, help='start token length')
     parser.add_argument('--pred_len', type=int, default=12, help='prediction sequence length')
     parser.add_argument('--inverse', action='store_true', help='inverse output data', default=True)
 
@@ -95,7 +96,7 @@ if __name__ == '__main__':
     parser.add_argument('--embed', type=str, default='fixed',
                         help='time features encoding, options:[timeF, fixed, learned]')
     parser.add_argument('--output_attention', type=bool, default=False, help='whether to output attention in ecoder')
-    parser.add_argument('--patch_size', type=int, default=1, help='The size of one patch')
+    parser.add_argument('--patch_size', type=int, default=12, help='The size of one patch')
     parser.add_argument('--label_patch_size', type=int, default=1, help='The size of one  decoder input patch')
     parser.add_argument('--time_channel', type=int, default=4, help='The channel of time inputs')
     parser.add_argument('--target_channel', type=int, default=5, help='The channel of target inputs')
@@ -105,10 +106,10 @@ if __name__ == '__main__':
     # optimization
     parser.add_argument('--num_workers', type=int, default=1, help='data loader num workers')
     parser.add_argument('--itr', type=int, default=1, help='experiments times')
-    parser.add_argument('--train_epochs', type=int, default=200, help='train epochs')
+    parser.add_argument('--train_epochs', type=int, default=145, help='train epochs')
     parser.add_argument('--batch_size', type=int, default=16, help='batch size of train input data')
     parser.add_argument('--patience', type=int, default=30, help='early stopping patience')
-    parser.add_argument('--learning_rate', type=float, default=0.001, help='optimizer learning rate')
+    parser.add_argument('--learning_rate', type=float, default=0.002, help='optimizer learning rate')
     parser.add_argument('--weight_decay', type=float, default=0.0003, help='optimizer weight_decay')
     parser.add_argument('--des', type=str, default='Exp', help='exp description')
     parser.add_argument('--loss', type=str, default='MSE', help='loss function')
@@ -118,7 +119,7 @@ if __name__ == '__main__':
     # GPU
     parser.add_argument('--use_gpu', type=bool, default=True, help='use gpu')
     parser.add_argument('--gpu', type=int, default=0, help='gpu')
-    parser.add_argument('--use_multi_gpu', type=bool, help='use multiple gpus', default=False)
+    parser.add_argument('--use_multi_gpu', type=bool, help='use multiple gpus', default=True)
     parser.add_argument('--devices', type=str, default='0,1', help='device ids of multile gpus')
 
     args = parser.parse_args()
@@ -145,6 +146,8 @@ if __name__ == '__main__':
         Exp = Exp_ST
     elif args.task_name == 'stTrans':
         Exp = Exp_stTrans
+    elif args.task_name == 'stTrans_mae':
+        Exp = Exp_stTrans_mae
     else:
         Exp = Exp_Forecast
 

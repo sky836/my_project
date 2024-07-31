@@ -86,7 +86,7 @@ class Exp_stTrans(Exp_Basic):
                 # encoder - decoder
                 outputs, _ = self.model(batch_x, batch_y)
                 outputs = outputs.squeeze(-1)
-                y = batch_y[:, self.args.label_len:, :, 0]
+                y = batch_y[..., 0]
                 if vali_data.scale and self.args.inverse:
                     batch_size, pred_len, n_nodes = outputs.shape
                     outputs = vali_data.inverse_transform(outputs.reshape(-1, n_nodes)).reshape(batch_size,
@@ -206,7 +206,7 @@ class Exp_stTrans(Exp_Basic):
 
                 outputs, time_pred = self.model(batch_x, batch_y)
                 outputs = outputs.squeeze(-1)
-                y = batch_y[:, self.args.label_len:, :, 0]
+                y = batch_y[..., 0]
 
                 batch_size, pred_len, n_nodes = outputs.shape
                 if train_data.scale and self.args.inverse:
@@ -301,7 +301,7 @@ class Exp_stTrans(Exp_Basic):
 
                 outputs, _ = self.model(batch_x, batch_y)
                 outputs = outputs.squeeze(-1)
-                y = batch_y[:, self.args.label_len:, :, 0]
+                y = batch_y[..., 0]
 
                 if test_data.scale and self.args.inverse:
                     batch_size, pred_len, n_nodes = outputs.shape

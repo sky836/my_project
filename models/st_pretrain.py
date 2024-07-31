@@ -11,11 +11,9 @@ class Model(nn.Module):
     def __init__(self, configs):
         super(Model, self).__init__()
         self.num_nodes = configs.num_nodes
-        self.in_steps = configs.seq_len
-        self.out_steps = configs.pred_len
+        self.in_steps = configs.label_len
         self.steps_per_day = configs.steps_per_day
         self.input_dim = configs.input_dim
-        self.output_dim = configs.output_dim
         self.input_embedding_dim = configs.input_embedding_dim
         self.tod_embedding_dim = configs.tod_embedding_dim
         self.dow_embedding_dim = configs.dow_embedding_dim

@@ -149,7 +149,7 @@ class Exp_Pretrain(Exp_Basic):
                 summary(
                     self.model,
                     [
-                        (self.args.batch_size, self.args.seq_len, self.args.num_nodes, 3)
+                        (self.args.batch_size, self.args.label_len, self.args.num_nodes, 3)
                     ],
                     verbose=0,  # avoid print twice
                 )
@@ -166,7 +166,7 @@ class Exp_Pretrain(Exp_Basic):
         train_steps = len(train_loader)
         model_optim = self._select_optimizer()
         lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(model_optim,
-                                                                  mode='min', factor=0.1, patience=10,
+                                                                  mode='min', factor=0.1, patience=5,
                                                                   verbose=False, threshold=0.001, threshold_mode='rel',
                                                                   cooldown=0, min_lr=1e-7, eps=1e-08)
 

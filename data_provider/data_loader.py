@@ -241,11 +241,9 @@ class Dataset_PEMS08(Dataset):
     def __init__(self, root_path, data_path, flag='train', size=None, scale=True, time_to_feature=1, type='flow'):
         if size == None:
             self.seq_len = 12
-            self.label_len = 1
             self.pred_len = 12
         else:
             self.seq_len = size[0]
-            self.label_len = size[1]
             self.pred_len = size[2]
         # init
         assert flag in ['train', 'test', 'val']
@@ -323,8 +321,8 @@ class Dataset_PEMS08(Dataset):
     def __getitem__(self, index):
         s_begin = index
         s_end = s_begin + self.seq_len
-        r_begin = s_end - self.label_len
-        r_end = r_begin + self.label_len + self.pred_len
+        r_begin = s_end
+        r_end = r_begin + self.pred_len
 
         seq_x = self.data_x[s_begin:s_end]
         seq_y = self.data_y[r_begin:r_end]
@@ -334,7 +332,7 @@ class Dataset_PEMS08(Dataset):
         return seq_x, seq_y, seq_x_mark, seq_y_mark
 
     def __len__(self):
-        return len(self.data_x) - self.seq_len - self.pred_len - self.label_len + 1
+        return len(self.data_x) - self.seq_len - self.pred_len + 1
 
     def inverse_transform(self, data):
         return self.scaler.inverse_transform(data)

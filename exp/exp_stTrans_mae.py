@@ -33,7 +33,8 @@ class Exp_stTrans_mae(Exp_Basic):
         # # num_nodes = len(pickle_data[0])
         # supports = [torch.tensor(i).to(self.device) for i in adj]
         # .float(): 将模型的参数和张量转换为浮点数类型
-        model = self.model_dict[self.args.model].Model(self.args).float()
+        supports = None
+        model = self.model_dict[self.args.model].Model(self.args, supports).float()
 
         return model
 
@@ -70,7 +71,7 @@ class Exp_stTrans_mae(Exp_Basic):
                 batch_long = batch_long.float().to(self.device)
 
                 # encoder - decoder
-                outputs = self.model(batch_x, batch_y, batch_long)
+                outputs = self.model(batch_x, batch_long)
                 outputs = outputs.squeeze(-1)
                 y = batch_y[:, self.args.label_len:, :, 0]
                 if vali_data.scale and self.args.inverse:
@@ -174,7 +175,7 @@ class Exp_stTrans_mae(Exp_Basic):
                 batch_y = batch_y.float().to(self.device)
                 batch_long = batch_long.float().to(self.device)
 
-                outputs, time_pred = self.model(batch_x, batch_y, batch_long)
+                outputs, time_pred = self.model(batch_x, batch_long)
                 outputs = outputs.squeeze(-1)
                 y = batch_y[:, self.args.label_len:, :, 0]
 
@@ -183,7 +184,8 @@ class Exp_stTrans_mae(Exp_Basic):
                     outputs = train_data.inverse_transform(outputs.reshape(-1, n_nodes)).reshape(batch_size,
                                                                                                  pred_len, n_nodes)
 
-                loss = criterion(outputs, y) + criterion(time_pred, batch_y[:, :, 0, 1:])
+                loss = criterion(outputs, y)
+                # loss = criterion(outputs, y) + criterion(time_pred, batch_y[:, :, 0, 1:])
                 train_loss.append(loss.item())
 
                 if (i + 1) % 100 == 0:
@@ -269,7 +271,7 @@ class Exp_stTrans_mae(Exp_Basic):
                 batch_y = batch_y.float().to(self.device)
                 batch_long = batch_long.float().to(self.device)
 
-                outputs, _ = self.model(batch_x, batch_y, batch_long)
+                outputs, _ = self.model(batch_x, batch_long)
                 outputs = outputs.squeeze(-1)
                 y = batch_y[:, self.args.label_len:, :, 0]
 

@@ -1,8 +1,7 @@
 import torch
 from torch import nn
 
-import GWNET
-import st_pretrain
+from models import GWNET, st_pretrain
 
 
 class Model(nn.Module):
@@ -15,9 +14,10 @@ class Model(nn.Module):
                  out_dim=12, residual_channels=32, dilation_channels=32, skip_channels=256, end_channels=512,
                  kernel_size=2, blocks=4, layers=2)
 
-        self.time_fc = nn.Linear(self.time_dim, configs.pred_len * 2)
+        # self.time_fc = nn.Linear(self.time_dim, configs.pred_len * 2)
 
         # load pre-trained model
+        self.pre_trained_tmae_path = configs.best_model_path
         self.load_pre_trained_model()
 
     def load_pre_trained_model(self):
@@ -50,7 +50,7 @@ class Model(nn.Module):
         hidden_target = hidden_target[:, :, -out_len, :]
         hidden_time = hidden_time[:, :, -out_len, :]
         y_hat = self.backend(short_term_history, hidden_states=hidden_target).transpose(1, 2).unsqueeze(-1)
-        y_time = self.time_fc(hidden_time)
+        # y_time = self.time_fc(hidden_time)
 
-        return y_hat, y_time
+        return y_hat, hidden_time
 
