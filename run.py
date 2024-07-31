@@ -58,7 +58,7 @@ if __name__ == '__main__':
                         help='Adding time features to the data. options: [0, 1], 0 stands for 2 features. 1 stands for 4 features')
 
     # forecasting task
-    parser.add_argument('--seq_len', type=int, default=12, help='input sequence length')
+    parser.add_argument('--seq_len', type=int, default=12*24*7, help='input sequence length')
     parser.add_argument('--label_len', type=int, default=12*24*7, help='start token length')
     parser.add_argument('--pred_len', type=int, default=12, help='prediction sequence length')
     parser.add_argument('--inverse', action='store_true', help='inverse output data', default=True)
@@ -114,12 +114,12 @@ if __name__ == '__main__':
     parser.add_argument('--des', type=str, default='Exp', help='exp description')
     parser.add_argument('--loss', type=str, default='MSE', help='loss function')
     parser.add_argument('--lradj', type=str, default='type1', help='adjust learning rate')
-    parser.add_argument('--use_amp', action='store_true', help='use automatic mixed precision training', default=False)
+    parser.add_argument('--use_amp', action='store_true', help='use automatic mixed precision training', default=True)
 
     # GPU
     parser.add_argument('--use_gpu', type=bool, default=True, help='use gpu')
     parser.add_argument('--gpu', type=int, default=0, help='gpu')
-    parser.add_argument('--use_multi_gpu', type=bool, help='use multiple gpus', default=True)
+    parser.add_argument('--use_multi_gpu', type=bool, help='use multiple gpus', default=False)
     parser.add_argument('--devices', type=str, default='0,1', help='device ids of multile gpus')
 
     args = parser.parse_args()
