@@ -8,7 +8,7 @@ from models.swin_transformer import PatchEmbed
 
 
 class Model(nn.Module):
-    def __init__(self, configs):
+    def __init__(self, configs, mode='pre-train'):
         super(Model, self).__init__()
         self.num_nodes = configs.num_nodes
         self.in_steps = configs.label_len
@@ -36,6 +36,7 @@ class Model(nn.Module):
         self.patch_size = configs.patch_size
         self.num_nodes = configs.num_nodes
         self.dropout = configs.dropout
+        self.mode = mode
 
         self.patch_emb = PatchEmbed(seq_len=self.in_steps, patch_size=self.patch_size,
                                     in_chans=self.input_dim, embed_dim=self.input_embedding_dim,
