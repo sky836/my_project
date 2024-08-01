@@ -489,7 +489,7 @@ class Dataset_NYCTaxi(Dataset):
         data = []
         for i in range(0, df.shape[0], len_time):
             data.append(df[i:i + len_time].values)
-        data = np.array(data, dtype=np.float)
+        data = np.array(data, dtype=np.float32)
         data = data.swapaxes(0, 1)
 
         num_train = round(len(data) * 0.7)
