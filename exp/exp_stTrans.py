@@ -262,16 +262,16 @@ class Exp_stTrans(Exp_Basic):
                         f'Evaluate model on test data for horizon {i}, Test MAE: {mae}, Test RMSE: {rmse}, Test MAPE: {mape}'
                     )
 
-            early_stopping(vali_loss, self.model, path, epoch, self.device)
             if self.device == 0:
+                early_stopping(vali_loss, self.model, path, epoch, self.device)
                 if early_stopping.early_stop:
                     print_log(log, "Early stopping")
                     print_log(log, "best epoch: {0}".format(early_stopping.best_epoch))
                     break
 
             if self.device == 0:
-                writer.add_scalar(scalar_value=train_loss, global_step=step, tag='Loss/train')
-                writer.add_scalar(scalar_value=vali_loss, global_step=step, tag='Loss/valid')
+                writer.add_scalar(scalar_value=train_loss, global_step=epoch, tag='Loss/train')
+                writer.add_scalar(scalar_value=vali_loss, global_step=epoch, tag='Loss/valid')
 
         best_model_path = path + 'checkpoint.pth'
         self.model.load_state_dict(torch.load(best_model_path))

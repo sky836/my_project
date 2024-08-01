@@ -57,7 +57,7 @@ class Model(nn.Module):
         Ref Official Code: https://github.com/nnzhan/Graph-WaveNet/blob/master/model.py
     """
 
-    def __init__(self, num_nodes, supports, dropout=0.3, gcn_bool=True, addaptadj=True, aptinit=None, in_dim=2,
+    def __init__(self, num_nodes, supports, dropout=0.3, gcn_bool=True, addaptadj=True, aptinit=None, in_dim=3,
                  out_dim=12, residual_channels=32, dilation_channels=32, skip_channels=256, end_channels=512,
                  kernel_size=2, blocks=4, layers=2, **kwargs):
 
@@ -133,7 +133,7 @@ class Model(nn.Module):
 
         self.receptive_field = receptive_field
 
-    def forward(self, input, hidden_states):
+    def forward(self, input, hidden_states=None):
         """feed forward of Graph WaveNet.
         Args:
             input (torch.Tensor): input history MTS with shape [B, L, N, C].
@@ -213,14 +213,15 @@ class Model(nn.Module):
         # hidden_states_s = self.fc_his_s(hidden_states[:, :, 96:])  # B, N, D
         # hidden_states_s = hidden_states_s.transpose(1, 2).unsqueeze(-1)
         # skip = skip + hidden_states_s
-        hidden_states = self.fc_his(hidden_states)
-        hidden_states = hidden_states.transpose(1, 2).unsqueeze(-1)
-        skip = skip + hidden_states
+        if hidden_states is not None:
+            hidden_states = self.fc_his(hidden_states)
+            hidden_states = hidden_states.transpose(1, 2).unsqueeze(-1)
+            skip = skip + hidden_states
 
         x = F.relu(skip)
         x = F.relu(self.end_conv_1(x))
         x = self.end_conv_2(x)
 
         # reshape output: [B, P, N, 1] -> [B, N, P]
-        x = x.squeeze(-1).transpose(1, 2)
+        x = x.squeeze(-1)
         return x
