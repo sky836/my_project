@@ -92,7 +92,7 @@ class Exp_stTrans(Exp_Basic):
                     outputs = vali_data.inverse_transform(outputs.reshape(-1, n_nodes, n_feats)).reshape(batch_size,
                                                                                                 pred_len, n_nodes, n_feats)
 
-                loss = criterion(outputs, y)
+                loss = criterion(outputs, y, 0.0)
                 total_loss.append(loss.item())
 
                 Mae, Mse, Rmse, Mape, Mspe = [], [], [], [], []
@@ -229,7 +229,7 @@ class Exp_stTrans(Exp_Basic):
                     outputs = train_data.inverse_transform(outputs.reshape(-1, n_nodes, n_feats)).reshape(batch_size,
                                                                                                  pred_len, n_nodes, n_feats)
 
-                loss = criterion(outputs, y) + criterion(time_pred, batch_y[:, :, 0, self.args.output_dim:])
+                loss = criterion(outputs, y, 0.0) + criterion(time_pred, batch_y[:, :, 0, self.args.output_dim:])
                 train_loss.append(loss.item())
 
                 if (i + 1) % 100 == 0:
