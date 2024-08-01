@@ -85,28 +85,40 @@ class Exp_stTrans(Exp_Basic):
 
                 # encoder - decoder
                 outputs, _ = self.model(batch_x, batch_y)
-                outputs = outputs.squeeze(-1)
-                y = batch_y[..., 0]
+
+                y = batch_y[..., :self.args.output_dim]
                 if vali_data.scale and self.args.inverse:
-                    batch_size, pred_len, n_nodes = outputs.shape
-                    outputs = vali_data.inverse_transform(outputs.reshape(-1, n_nodes)).reshape(batch_size,
-                                                                                                pred_len, n_nodes)
+                    batch_size, pred_len, n_nodes, n_feats = outputs.shape
+                    outputs = vali_data.inverse_transform(outputs.reshape(-1, n_nodes, n_feats)).reshape(batch_size,
+                                                                                                pred_len, n_nodes, n_feats)
 
                 loss = criterion(outputs, y)
                 total_loss.append(loss.item())
 
-                mae, mse, rmse, mape, mspe = metric(outputs, y)
-                maes.append(mae.item())
-                mses.append(mse.item())
-                rmses.append(rmse.item())
-                mapes.append(mape.item())
-                mspes.append(mspe.item())
+                Mae, Mse, Rmse, Mape, Mspe = [], [], [], [], []
+                for i in range(n_feats):
+                    mae, mse, rmse, mape, mspe = metric(outputs[..., i], y[..., i])
+                    Mae.append(mae.item())
+                    Mse.append(mse.item())
+                    Rmse.append(rmse.item())
+                    Mape.append(mape.item())
+                    Mspe.append(mspe.item())
+                if n_feats > 1:
+                    mae, mse, rmse, mape, mspe = metric(outputs, y)
+                    Mae.append(mae.item())
+                    Mse.append(mse.item())
+                    Rmse.append(rmse.item())
+                    Mape.append(mape.item())
+                    Mspe.append(mspe.item())
                 preds.append(outputs)
                 trues.append(y)
 
-        total_loss, maes, mses, rmses, mapes, mspes = np.average(total_loss), np.average(maes), \
-                                                      np.average(mses), np.average(rmses), \
-                                                      np.average(mapes), np.average(mspes)
+        maes, mses, rmses, mapes, mspes = np.array(maes), np.array(mses), np.array(rmses), \
+                                          np.array(mapes), np.array(mspes)
+        maes, mses, rmses, mapes, mspes = np.average(maes, axis=0), \
+                                     np.average(mses, axis=0), np.average(rmses, axis=0), \
+                                     np.average(mapes, axis=0), np.average(mspes, axis=0)
+        total_loss = np.average(total_loss)
         preds = torch.cat(preds, dim=0)
         trues = torch.cat(trues, dim=0)
         self.model.train()
@@ -172,8 +184,8 @@ class Exp_stTrans(Exp_Basic):
                 summary(
                     self.model,
                     [
-                        (self.args.batch_size, self.args.seq_len, self.args.num_nodes, 3),
-                        (self.args.batch_size, self.args.pred_len, self.args.num_nodes, 3)
+                        (self.args.batch_size, self.args.seq_len, self.args.num_nodes, self.args.input_dim),
+                        (self.args.batch_size, self.args.pred_len, self.args.num_nodes, self.args.input_dim)
                     ],
                     verbose=0,  # avoid print twice
                 )
@@ -205,16 +217,15 @@ class Exp_stTrans(Exp_Basic):
                 batch_y = batch_y.float().to(self.device)
 
                 outputs, time_pred = self.model(batch_x, batch_y)
-                outputs = outputs.squeeze(-1)
-                y = batch_y[..., 0]
 
-                batch_size, pred_len, n_nodes = outputs.shape
+                y = batch_y[..., :self.args.output_dim]
+
+                batch_size, pred_len, n_nodes, n_feats = outputs.shape
                 if train_data.scale and self.args.inverse:
-                    outputs = train_data.inverse_transform(outputs.reshape(-1, n_nodes)).reshape(batch_size,
-                                                                                                 pred_len, n_nodes)
+                    outputs = train_data.inverse_transform(outputs.reshape(-1, n_nodes, n_feats)).reshape(batch_size,
+                                                                                                 pred_len, n_nodes, n_feats)
 
-                # outputs = self.addNoisy(outputs, y)
-                loss = criterion(outputs, y) + criterion(time_pred, batch_y[:, :, 0, 1:])
+                loss = criterion(outputs, y) + criterion(time_pred, batch_y[:, :, 0, self.args.output_dim:])
                 train_loss.append(loss.item())
 
                 if (i + 1) % 100 == 0:
@@ -256,7 +267,7 @@ class Exp_stTrans(Exp_Basic):
                 )
                 _, pred_len, _ = test_preds.shape
                 for i in range(pred_len):
-                    mae, mse, rmse, mape, mspe = metric(test_preds[:, i, :], test_trues[:, i, :])
+                    mae, mse, rmse, mape, mspe = metric(test_preds[:, i], test_trues[:, i])
                     print_log(
                         log,
                         f'Evaluate model on test data for horizon {i}, Test MAE: {mae}, Test RMSE: {rmse}, Test MAPE: {mape}'
@@ -300,29 +311,45 @@ class Exp_stTrans(Exp_Basic):
                 batch_y = batch_y.float().to(self.device)
 
                 outputs, _ = self.model(batch_x, batch_y)
-                outputs = outputs.squeeze(-1)
-                y = batch_y[..., 0]
+
+                y = batch_y[..., self.args.output_dim]
 
                 if test_data.scale and self.args.inverse:
-                    batch_size, pred_len, n_nodes = outputs.shape
-                    outputs = test_data.inverse_transform(outputs.reshape(-1, n_nodes)).reshape(batch_size,
-                                                                                                pred_len, n_nodes)
+                    batch_size, pred_len, n_nodes, n_feats = outputs.shape
+                    outputs = test_data.inverse_transform(outputs.reshape(-1, n_nodes, n_feats)).reshape(batch_size,
+                                                                                                pred_len, n_nodes, n_feats)
 
-                mae, mse, rmse, mape, mspe = metric(outputs, y)
-                print("\tmae: {0:.7f} | mse: {1:.7f} | rmse: {2:.7f} | mape: {3:.7f} | mspe: {4:.7f}".format(mae, mse,
-                                                                                                             rmse, mape,
-                                                                                                             mspe))
-                maes.append(mae.item())
-                mses.append(mse.item())
-                rmses.append(rmse.item())
-                mapes.append(mape.item())
-                mspes.append(mspe.item())
+                Mae, Mse, Rmse, Mape, Mspe = [], [], [], [], []
+                for i in range(n_feats):
+                    mae, mse, rmse, mape, mspe = metric(outputs[..., i], y[..., i])
+                    Mae.append(mae.item())
+                    Mse.append(mse.item())
+                    Rmse.append(rmse.item())
+                    Mape.append(mape.item())
+                    Mspe.append(mspe.item())
+                    print("\tmae: {0:.7f} | mse: {1:.7f} | rmse: {2:.7f} | mape: {3:.7f} | mspe: {4:.7f}".
+                          format(mae, mse, rmse ,mape, mspe))
+                if n_feats > 1:
+                    mae, mse, rmse, mape, mspe = metric(outputs, y)
+                    Mae.append(mae.item())
+                    Mse.append(mse.item())
+                    Rmse.append(rmse.item())
+                    Mape.append(mape.item())
+                    Mspe.append(mspe.item())
+                    print("\tmae: {0:.7f} | mse: {1:.7f} | rmse: {2:.7f} | mape: {3:.7f} | mspe: {4:.7f}".
+                          format(mae, mse, rmse, mape, mspe))
 
-                inputs = batch_x[:, :, :, 0].detach().cpu().numpy()
+                maes.append(Mae)
+                mses.append(Mse)
+                rmses.append(Rmse)
+                mapes.append(Mape)
+                mspes.append(Mspe)
+
+                inputs = batch_x[:, :, :, :self.args.output_dim].detach().cpu().numpy()
                 if test_data.scale and self.args.inverse:
-                    batch_size, seq_len, n_nodes = inputs.shape
-                    inputs = test_data.inverse_transform(inputs.reshape(-1, n_nodes)).reshape(batch_size, seq_len,
-                                                                                              n_nodes)
+                    batch_size, seq_len, n_nodes, n_feats = inputs.shape
+                    inputs = test_data.inverse_transform(inputs.reshape(-1, n_nodes, n_feats)).reshape(batch_size, seq_len,
+                                                                                              n_nodes, n_feats)
                 x_trues.append(inputs.astype(np.float32))
                 batch_x_mark = batch_x_mark.detach().cpu().numpy()
                 batch_y_mark = batch_y_mark.detach().cpu().numpy()
@@ -331,10 +358,12 @@ class Exp_stTrans(Exp_Basic):
                 preds.append(outputs)
                 trues.append(y)
 
-        mae, mse, rmse, mape, mspe = np.average(maes), \
-                                          np.average(mses), np.average(rmses), \
-                                          np.average(mapes), np.average(mspes)
-        print('rmse:{:.7f}, mae:{:.7f}, mape:{:.7f}'.format(rmse, mae, mape))
+        maes, mses, rmses, mapes, mspes = np.array(maes), np.array(mses), np.array(rmses), np.array(mapes), np.array(mspes)
+        mae, mse, rmse, mape, mspe = np.average(maes, axis=0), \
+                                          np.average(mses, axis=0), np.average(rmses, axis=0), \
+                                          np.average(mapes, axis=0), np.average(mspes, axis=0)
+        for i in range(self.args.output_dim):
+            print('rmse:{:.7f}, mae:{:.7f}, mape:{:.7f}'.format(rmse[i], mae[i], mape[i]))
 
         # result save
         folder_path = './test_results/' + setting + '/'

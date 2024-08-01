@@ -1,3 +1,4 @@
+import datetime
 import os
 
 import numpy as np
@@ -445,16 +446,144 @@ class Dataset_Pretrain_Forecast(Dataset):
         return self.scaler.inverse_transform(data)
 
 
+class Dataset_NYCTaxi(Dataset):
+    def __init__(self, root_path, data_path, flag='train', size=None, scale=True, time_to_feature=0, type='flow'):
+        if size == None:
+            self.seq_len = 6
+            self.label_len = 12*24*7
+            self.pred_len = 1
+        else:
+            self.seq_len = size[0]
+            self.label_len = size[1]
+            self.pred_len = size[2]
+        # init
+        assert flag in ['train', 'test', 'val']
+        type_map = {'train': 0, 'val': 1, 'test': 2}
+        self.type = type
+        self.set_type = type_map[flag]
+
+        self.scale = scale
+        self.time_to_feature = time_to_feature
+
+        self.root_path = root_path
+        self.data_path = data_path
+        self.__read_data__()
+
+    def __read_data__(self):
+        data_file_path = self.root_path + self.data_path + '.grid'
+        geo_file_path = self.root_path + self.data_path + '.geo'
+        data = pd.read_csv(data_file_path)
+        geo = pd.read_csv(geo_file_path)
+
+        data_col = ['time', 'row_id', 'column_id', 'inflow', 'outflow']
+        data = data[data_col]
+        timesolts = list(data['time'][:int(data.shape[0] / geo.shape[0])])
+        # idx_of_timesolts = dict()
+        timesolts = list(map(lambda x: x.replace('T', ' ').replace('Z', ''), timesolts))
+        timesolts = np.array(timesolts, dtype='datetime64[ns]')
+        # for idx, _ts in enumerate(timesolts):
+        #     idx_of_timesolts[_ts] = idx
+        feature_dim = len(data.columns) - 3
+        df = data[data.columns[-feature_dim:]]
+        len_time = len(timesolts)
+        data = []
+        for i in range(0, df.shape[0], len_time):
+            data.append(df[i:i + len_time].values)
+        data = np.array(data, dtype=np.float)
+        data = data.swapaxes(0, 1)
+
+        num_train = round(len(data) * 0.7)
+        num_test = round(len(data) * 0.2)
+        num_vali = len(data) - num_train - num_test
+        border1s = [0, num_train - self.seq_len, len(data) - num_test - self.seq_len]
+        border2s = [num_train, num_train + num_vali, len(data)]
+        border1 = border1s[self.set_type]
+        border2 = border2s[self.set_type]
+
+        data_y = data
+
+        if self.scale:
+            train_data = data[border1s[0]:border2s[0]]
+            self.scaler = StandardScaler(mean=train_data.mean(), std=train_data.std())
+            print('mean:', train_data.mean())
+            print('std:', train_data.std())
+            # 对数据进行标准化
+            data = self.scaler.transform(data)
+        else:
+            data = data
+
+        num_samples, num_nodes, _ = data.shape
+        if self.time_to_feature == 0:
+            data_list = []
+            time_ind = (timesolts - timesolts.astype("datetime64[D]")) / np.timedelta64(1, "D")
+            time_in_day = np.tile(time_ind, [1, num_nodes, 1]).transpose((2, 1, 0))
+            data_list.append(time_in_day)
+            dayofweek = pd.Index(timesolts).dayofweek
+            day_in_week = np.tile(dayofweek, [1, num_nodes, 1]).transpose((2, 1, 0))
+            data_list.append(day_in_week)
+            processed_data = np.concatenate([data] + data_list, axis=-1)
+            processed_datay = np.concatenate([data_y] + data_list, axis=-1)
+        elif self.time_to_feature == 1:
+            l, n, _ = data.shape
+            # 对时间进行编码，返回是一个编码后的矩阵，每一行对应一个时间，列为编码后的特征
+            stamp = time_features(pd.to_datetime(timesolts), freq='T')
+            # 进行转置，每一行对应一个特征，列为对应的时间
+            stamp = stamp.transpose(1, 0)
+            stamp_tiled = np.tile(stamp, [n, 1, 1]).transpose((1, 0, 2))
+            processed_data = np.concatenate([data, stamp_tiled], axis=-1)
+            processed_datay = np.concatenate([data, stamp_tiled], axis=-1)
+        else:
+            processed_data = data
+
+        time_stamp = {'date': timesolts}
+        df_stamp = pd.DataFrame(time_stamp)
+        df_stamp['year'] = df_stamp.date.apply(lambda row: row.year, 1)
+        df_stamp['month'] = df_stamp.date.apply(lambda row: row.month, 1)
+        df_stamp['day'] = df_stamp.date.apply(lambda row: row.day, 1)
+        # df_stamp['weekday'] = df_stamp.date.apply(lambda row: row.weekday(), 1)
+        df_stamp['hour'] = df_stamp.date.apply(lambda row: row.hour, 1)
+        df_stamp['minute'] = df_stamp.date.apply(lambda row: row.minute, 1)
+        data_stamp = df_stamp.drop(columns=['date']).values
+
+        self.data_x = processed_data[border1:border2]
+        self.data_y = processed_datay[border1:border2]
+        self.data_stamp = data_stamp
+
+    def __getitem__(self, index):
+        s_begin = index
+        s_end = s_begin + self.seq_len
+        r_begin = s_end
+        r_end = r_begin + self.pred_len
+
+        seq_x = self.data_x[s_begin:s_end]
+        seq_y = self.data_y[r_begin:r_end]
+
+        seq_x_mark = self.data_stamp[s_begin:s_end]
+        seq_y_mark = self.data_stamp[r_begin:r_end]
+
+        return seq_x, seq_y, seq_x_mark, seq_y_mark
+
+    def __len__(self):
+        return len(self.data_x) - self.seq_len - self.pred_len + 1
+
+    def inverse_transform(self, data):
+        return self.scaler.inverse_transform(data)
+
+
 if __name__ == '__main__':
     root_path = '../datasets/'
-    data_path = 'PEMS04/PEMS04.npz'
+    data_path = 'NYCTaxi/NYCTaxi'
     # data_path = 'PEMS-BAY/PEMS-BAY.h5'
-    data = Dataset_PEMS04(root_path=root_path, data_path=data_path, time_to_feature=True)
+    data = Dataset_NYCTaxi(root_path=root_path, data_path=data_path, time_to_feature=0)
     # data = Dataset_h5(root_path=root_path, data_path=data_path, time_to_feature=True)
     seq_x, seq_y, seq_x_mark, seq_y_mark = data.__getitem__(0)
     print(seq_x.shape)
+    print(seq_y.shape)
+    print(seq_x)
+    print(seq_y)
+    print(seq_x_mark)
+    print(seq_y_mark)
     print(type(seq_x[0, 0, 0]))
     print(type(seq_x[0, 0, :]))
     print(type(seq_x[0, :, :]))
     print(type(seq_x))
-    # print(seq_x_mark)

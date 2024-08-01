@@ -19,6 +19,10 @@ core*
 *.pickle
 *.pyc
 *.txt
+*.geo
+*.grid
+*.json
+*.rel
 
 *.py[cod]
 *$py.class
