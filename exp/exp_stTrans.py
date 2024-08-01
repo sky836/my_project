@@ -112,6 +112,11 @@ class Exp_stTrans(Exp_Basic):
                     Mspe.append(mspe.item())
                 preds.append(outputs)
                 trues.append(y)
+                maes.append(Mae)
+                mses.append(Mse)
+                rmses.append(Rmse)
+                mapes.append(Mape)
+                mspes.append(Mspe)
 
         maes, mses, rmses, mapes, mspes = np.array(maes), np.array(mses), np.array(rmses), \
                                           np.array(mapes), np.array(mspes)
@@ -140,7 +145,6 @@ class Exp_stTrans(Exp_Basic):
         noisy = -loss/2 + loss*noisy
         outputs = outputs + noisy
         return outputs
-
 
     def train(self, setting):
         train_data, train_loader = self._get_data(flag='train')
