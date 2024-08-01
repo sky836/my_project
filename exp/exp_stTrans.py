@@ -266,7 +266,7 @@ class Exp_stTrans(Exp_Basic):
             if self.device == 0:
                 print_log(
                     log,
-                    "Epoch: {0}, Steps: {1} | Test Loss: {2:.7f} Test mae:{3:.7f} Test rmse:{4:.7f} Test mape: {5:.7f}".
+                    "Epoch: {0}, Steps: {1} | Test Loss: {2:.7f} Test mae:{3} Test rmse:{4} Test mape: {5}".
                     format(epoch + 1, train_steps, test_loss, test_mae, test_rmse, test_mape)
                 )
                 _, pred_len, _, _ = test_preds.shape
