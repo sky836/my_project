@@ -74,8 +74,9 @@ class Model(nn.Module):
         self.skip_convs = nn.ModuleList()
         self.bn = nn.ModuleList()
         self.gconv = nn.ModuleList()
-        self.fc_his_t = nn.Sequential(nn.Linear(96, 512), nn.ReLU(), nn.Linear(512, 256), nn.ReLU())
-        self.fc_his_s = nn.Sequential(nn.Linear(96, 512), nn.ReLU(), nn.Linear(512, 256), nn.ReLU())
+        # self.fc_his_t = nn.Sequential(nn.Linear(96, 512), nn.ReLU(), nn.Linear(512, 256), nn.ReLU())
+        # self.fc_his_s = nn.Sequential(nn.Linear(96, 512), nn.ReLU(), nn.Linear(512, 256), nn.ReLU())
+        self.fc_his = nn.Sequential(nn.Linear(104, 512), nn.ReLU(), nn.Linear(512, 256), nn.ReLU())
         self.start_conv = nn.Conv2d(in_channels=in_dim, out_channels=residual_channels, kernel_size=(1, 1))
         self.supports = supports
 
@@ -146,7 +147,7 @@ class Model(nn.Module):
         # feed forward
         input = nn.functional.pad(input, (1, 0, 0, 0))
 
-        input = input[:, :2, :, :]
+        # input = input[:, :2, :, :]
         in_len = input.size(3)
         if in_len < self.receptive_field:
             x = nn.functional.pad(input, (self.receptive_field - in_len, 0, 0, 0))
@@ -206,12 +207,15 @@ class Model(nn.Module):
 
             x = self.bn[i](x)
 
-        hidden_states_t = self.fc_his_t(hidden_states[:, :, :96])  # B, N, D
-        hidden_states_t = hidden_states_t.transpose(1, 2).unsqueeze(-1)
-        skip = skip + hidden_states_t
-        hidden_states_s = self.fc_his_s(hidden_states[:, :, 96:])  # B, N, D
-        hidden_states_s = hidden_states_s.transpose(1, 2).unsqueeze(-1)
-        skip = skip + hidden_states_s
+        # hidden_states_t = self.fc_his_t(hidden_states[:, :, :96])  # B, N, D
+        # hidden_states_t = hidden_states_t.transpose(1, 2).unsqueeze(-1)
+        # skip = skip + hidden_states_t
+        # hidden_states_s = self.fc_his_s(hidden_states[:, :, 96:])  # B, N, D
+        # hidden_states_s = hidden_states_s.transpose(1, 2).unsqueeze(-1)
+        # skip = skip + hidden_states_s
+        hidden_states = self.fc_his(hidden_states)
+        hidden_states = hidden_states.transpose(1, 2).unsqueeze(-1)
+        skip = skip + hidden_states
 
         x = F.relu(skip)
         x = F.relu(self.end_conv_1(x))

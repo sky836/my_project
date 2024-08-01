@@ -35,6 +35,8 @@ class Exp_Pretrain(Exp_Basic):
         # .float(): 将模型的参数和张量转换为浮点数类型
         model = self.model_dict[self.args.model].Model(self.args).float()
 
+        c = torch.load(self.args.best_model_path)
+
         # msg = model.load_state_dict(torch.load(self.args.best_model_path), strict=True)
         # print(msg)
         return model

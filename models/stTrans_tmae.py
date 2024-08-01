@@ -1,3 +1,5 @@
+from collections import OrderedDict
+
 import torch
 from torch import nn
 
@@ -23,7 +25,14 @@ class Model(nn.Module):
     def load_pre_trained_model(self):
         # load parameters
         checkpoint_dict = torch.load(self.pre_trained_tmae_path)
-        self.mae.load_state_dict(checkpoint_dict["model_state_dict"])
+        model_state_dict = checkpoint_dict["model_state_dict"]
+        new_state_dict = OrderedDict()  # create new OrderedDict that does not contain `module.`
+        for k, v in model_state_dict.items():
+            name = k.replace('module.', '')
+            new_state_dict[name] = v
+
+        msg = self.mae.load_state_dict(new_state_dict)
+        print(msg)
 
         # freeze parameters
         for param in self.mae.parameters():
@@ -43,12 +52,12 @@ class Model(nn.Module):
         short_term_history = history_data  # [B, L, N, 1]
         batch_size, _, num_nodes, _ = history_data.shape
 
-        hidden_time, hidden_target = self.mae(long_history_data)
+        hidden_time, hidden_target, _ = self.mae(long_history_data)
 
         # enhance
         out_len = 1
-        hidden_target = hidden_target[:, :, -out_len, :]
-        hidden_time = hidden_time[:, :, -out_len, :]
+        hidden_target = hidden_target[:, -out_len:, :, :].squeeze(1)
+        hidden_time = hidden_time[:, -out_len, :]
         y_hat = self.backend(short_term_history, hidden_states=hidden_target).transpose(1, 2).unsqueeze(-1)
         # y_time = self.time_fc(hidden_time)
 

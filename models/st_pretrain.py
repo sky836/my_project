@@ -8,7 +8,7 @@ from models.swin_transformer import PatchEmbed
 
 
 class Model(nn.Module):
-    def __init__(self, configs, mode='pre-train'):
+    def __init__(self, configs, mode='no pre-train'):
         super(Model, self).__init__()
         self.num_nodes = configs.num_nodes
         self.in_steps = configs.label_len
