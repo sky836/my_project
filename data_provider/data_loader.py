@@ -431,7 +431,7 @@ class Dataset_Pretrain_Forecast(Dataset):
 
         l_begin = s_end - self.label_len
         if l_begin < 0:
-            seq_long = np.zeros(self.label_len, self.data_x.shape[1], self.data_x.shape[2])
+            seq_long = np.zeros((self.label_len, self.data_x.shape[1], self.data_x.shape[2]))
             seq_long[-self.seq_len:] = seq_x
         else:
             seq_long = self.data_x[l_begin:s_end]
