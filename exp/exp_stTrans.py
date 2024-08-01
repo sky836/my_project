@@ -265,7 +265,7 @@ class Exp_stTrans(Exp_Basic):
                     "Epoch: {0}, Steps: {1} | Test Loss: {2:.7f} Test mae:{3:.7f} Test rmse:{4:.7f} Test mape: {5:.7f}".
                     format(epoch + 1, train_steps, test_loss, test_mae, test_rmse, test_mape)
                 )
-                _, pred_len, _ = test_preds.shape
+                _, pred_len, _, _ = test_preds.shape
                 for i in range(pred_len):
                     mae, mse, rmse, mape, mspe = metric(test_preds[:, i], test_trues[:, i])
                     print_log(
