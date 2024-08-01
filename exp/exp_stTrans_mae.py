@@ -71,7 +71,7 @@ class Exp_stTrans_mae(Exp_Basic):
                 batch_long = batch_long.float().to(self.device)
 
                 # encoder - decoder
-                outputs = self.model(batch_x, batch_long)
+                outputs, _ = self.model(batch_x, batch_long)
                 outputs = outputs.squeeze(-1)
                 y = batch_y[..., 0]
                 if vali_data.scale and self.args.inverse:
@@ -123,7 +123,8 @@ class Exp_stTrans_mae(Exp_Basic):
         time_now = time.time()
 
         train_steps = len(train_loader)
-        early_stopping = EarlyStopping(patience=self.args.patience, verbose=True)
+        if self.device == 0:
+            early_stopping = EarlyStopping(patience=self.args.patience, verbose=True)
 
         model_optim = self._select_optimizer()
         scheduler = torch.optim.lr_scheduler.MultiStepLR(
@@ -231,8 +232,8 @@ class Exp_stTrans_mae(Exp_Basic):
                         log,
                         f'Evaluate model on test data for horizon {i}, Test MAE: {mae}, Test RMSE: {rmse}, Test MAPE: {mape}'
                     )
-
-            early_stopping(vali_loss, self.model, path, epoch, self.device)
+            if self.device == 0:
+                early_stopping(vali_loss, self.model, path, epoch, self.device)
             if self.device == 0:
                 if early_stopping.early_stop:
                     print_log(log, "Early stopping")
