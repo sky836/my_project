@@ -1,4 +1,5 @@
 import datetime
+import math
 import pickle
 
 import scipy.sparse as sp
@@ -154,11 +155,23 @@ class Exp_stTrans(Exp_Basic):
         early_stopping = EarlyStopping(patience=self.args.patience, verbose=True)
 
         model_optim = self._select_optimizer()
-        scheduler = torch.optim.lr_scheduler.MultiStepLR(
-            model_optim,
-            milestones=[20, 30, 40],
-            gamma=0.1
-        )
+        # scheduler = torch.optim.lr_scheduler.MultiStepLR(
+        #     model_optim,
+        #     milestones=[20, 30, 40],
+        #     gamma=0.1
+        # )
+        # 设置warm up的轮次为100次
+        warm_up_iter = 5
+        T_max = self.args.train_epochs  # 周期
+        lr_max = 0.001  # 最大值
+        lr_min = 1e-5  # 最小值
+
+        # 为param_groups[0] (即model.layer2) 设置学习率调整规则 - Warm up + Cosine Anneal
+        lambda0 = lambda cur_iter: cur_iter / warm_up_iter if cur_iter < warm_up_iter else \
+            (lr_min + 0.5 * (lr_max - lr_min) * (
+                        1.0 + math.cos((cur_iter - warm_up_iter) / (T_max - warm_up_iter) * math.pi))) / 0.1
+        scheduler = torch.optim.lr_scheduler.LambdaLR(model_optim, lr_lambda=[lambda0])
+
         criterion = self._select_criterion()
 
         n_parameters = sum(p.numel() for p in self.model.parameters() if p.requires_grad)

@@ -20,7 +20,7 @@ data_dict = {
 def data_provider(args, flag):
     Data = data_dict[args.data]
     time_to_feature = args.time_to_feature
-    if args.use_multi_gpu or flag is not 'train':
+    if args.use_multi_gpu or flag != 'train':
         shuffle_flag = False
         # drop_last 是 DataLoader 类的一个参数，用于指定在数据集大小
         # 不能被批次大小整除时是否**丢弃最后一个小于批次大小的 batch**。
