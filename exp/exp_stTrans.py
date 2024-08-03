@@ -239,14 +239,14 @@ class Exp_stTrans(Exp_Basic):
                 print_log(
                     log,
                     "Epoch: {0}, Steps: {1} | Train Loss: {2:.7f} Vali Loss: {3:.7f}".
-                    format(epoch + 1, train_steps, train_loss, vali_loss)
+                    format(epoch + 1, train_steps, train_loss, vali_mae)
                 )
             test_loss, test_mae, test_rmse, test_mape, test_preds, test_trues = self.vali(test_data, test_loader, criterion)
             if self.device == 0:
                 print_log(
                     log,
-                    "Epoch: {0}, Steps: {1} | Test Loss: {2:.7f} Test mae:{3} Test rmse:{4} Test mape: {5}".
-                    format(epoch + 1, train_steps, test_loss, test_mae, test_rmse, test_mape)
+                    "Epoch: {0}, Steps: {1} | Test mae:{2} Test rmse:{3} Test mape: {4}".
+                    format(epoch + 1, train_steps, test_mae, test_rmse, test_mape)
                 )
                 _, pred_len, _, _ = test_preds.shape
                 for i in range(pred_len):
@@ -257,7 +257,7 @@ class Exp_stTrans(Exp_Basic):
                     )
 
             if self.device == 0:
-                early_stopping(vali_loss, self.model, path, epoch, self.device)
+                early_stopping(vali_mae, self.model, path, epoch, self.device)
                 if early_stopping.early_stop:
                     print_log(log, "Early stopping")
                     print_log(log, "best epoch: {0}".format(early_stopping.best_epoch))
