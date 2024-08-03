@@ -95,34 +95,18 @@ class Exp_stTrans(Exp_Basic):
                 loss = criterion(outputs, y, 0.0)
                 total_loss.append(loss.item())
 
-                Mae, Mse, Rmse, Mape, Mspe = [], [], [], [], []
-                for i in range(n_feats):
-                    mae, mse, rmse, mape, mspe = metric(outputs[..., i], y[..., i])
-                    Mae.append(mae.item())
-                    Mse.append(mse.item())
-                    Rmse.append(rmse.item())
-                    Mape.append(mape.item())
-                    Mspe.append(mspe.item())
-                if n_feats > 1:
-                    mae, mse, rmse, mape, mspe = metric(outputs, y)
-                    Mae.append(mae.item())
-                    Mse.append(mse.item())
-                    Rmse.append(rmse.item())
-                    Mape.append(mape.item())
-                    Mspe.append(mspe.item())
+                mae, mse, rmse, mape, mspe = metric(outputs, y)
+
                 preds.append(outputs)
                 trues.append(y)
-                maes.append(Mae)
-                mses.append(Mse)
-                rmses.append(Rmse)
-                mapes.append(Mape)
-                mspes.append(Mspe)
+                maes.append(mae)
+                mses.append(mse)
+                rmses.append(rmse)
+                mapes.append(mape)
+                mspes.append(mspe)
 
-        maes, mses, rmses, mapes, mspes = np.array(maes), np.array(mses), np.array(rmses), \
-                                          np.array(mapes), np.array(mspes)
-        maes, mses, rmses, mapes, mspes = np.average(maes, axis=0), \
-                                     np.average(mses, axis=0), np.average(rmses, axis=0), \
-                                     np.average(mapes, axis=0), np.average(mspes, axis=0)
+        maes, mses, rmses, mapes, mspes = np.average(maes), np.average(mses), np.average(rmses), \
+                                     np.average(mapes), np.average(mspes)
         total_loss = np.average(total_loss)
         preds = torch.cat(preds, dim=0)
         trues = torch.cat(trues, dim=0)
