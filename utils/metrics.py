@@ -15,7 +15,7 @@ def masked_mae(preds, labels, null_val=0.0):
     loss = torch.where(torch.isnan(loss), torch.zeros_like(loss), loss)
     return torch.mean(loss)
 
-def masked_huber_loss(preds, labels, delta=1.0, null_val=np.nan):
+def masked_huber_loss(preds, labels, null_val=np.nan, delta=1.0):
     labels[torch.abs(labels) < 1e-4] = 0
     if np.isnan(null_val):
         mask = ~torch.isnan(labels)
