@@ -239,7 +239,7 @@ NYTaxi:
   day_of_week: True
 
   lr: 0.001
-  weight_decay: 0.0003
+  weight_decay: 0.0005
   milestones: [15, 30, 40]
   lr_decay_rate: 0.1
   batch_size: 16
