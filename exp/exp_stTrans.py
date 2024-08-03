@@ -99,11 +99,11 @@ class Exp_stTrans(Exp_Basic):
 
                 preds.append(outputs)
                 trues.append(y)
-                maes.append(mae)
-                mses.append(mse)
-                rmses.append(rmse)
-                mapes.append(mape)
-                mspes.append(mspe)
+                maes.append(mae.item())
+                mses.append(mse.item())
+                rmses.append(rmse.item())
+                mapes.append(mape.item())
+                mspes.append(mspe.item())
 
         maes, mses, rmses, mapes, mspes = np.average(maes), np.average(mses), np.average(rmses), \
                                      np.average(mapes), np.average(mspes)
