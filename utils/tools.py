@@ -195,3 +195,26 @@ class DataLoader(object):
                 self.current_ind += 1
 
         return _wrapper()
+
+
+class WarmupMultiStepLR(torch.optim.lr_scheduler._LRScheduler):
+    def __init__(self, optimizer, warmup_epochs, milestones, gamma=0.1, last_epoch=-1):
+        self.warmup_epochs = warmup_epochs
+        self.milestones = milestones
+        self.gamma = gamma
+        super(WarmupMultiStepLR, self).__init__(optimizer, last_epoch)
+
+    def get_lr(self):
+        if self.last_epoch < self.warmup_epochs:
+            # 在warmup阶段，学习率线性增长
+            return [base_lr * (self.last_epoch + 1) / self.warmup_epochs for base_lr in self.base_lrs]
+        else:
+            # 在warmup阶段结束后，使用MultiStepLR策略
+            return [base_lr * (self.gamma ** self._get_step_count()) for base_lr in self.base_lrs]
+
+    def _get_step_count(self):
+        count = 0
+        for milestone in self.milestones:
+            if self.last_epoch >= milestone:
+                count += 1
+        return count

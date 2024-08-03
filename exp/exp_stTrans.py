@@ -9,7 +9,7 @@ from torchinfo import summary
 from data_provider.data_factory import data_provider
 from exp.exp_basic import Exp_Basic
 from utils.metrics import metric, masked_mae
-from utils.tools import EarlyStopping, save_trainlog, print_log
+from utils.tools import EarlyStopping, save_trainlog, print_log, WarmupMultiStepLR
 import torch
 import torch.nn as nn
 from torch import optim
@@ -161,16 +161,7 @@ class Exp_stTrans(Exp_Basic):
         #     gamma=0.1
         # )
         # 设置warm up的轮次为100次
-        warm_up_iter = 5
-        T_max = self.args.train_epochs  # 周期
-        lr_max = 0.001  # 最大值
-        lr_min = 1e-5  # 最小值
-
-        # 为param_groups[0] (即model.layer2) 设置学习率调整规则 - Warm up + Cosine Anneal
-        lambda0 = lambda cur_iter: cur_iter / warm_up_iter if cur_iter < warm_up_iter else \
-            (lr_min + 0.5 * (lr_max - lr_min) * (
-                        1.0 + math.cos((cur_iter - warm_up_iter) / (T_max - warm_up_iter) * math.pi))) / 0.1
-        scheduler = torch.optim.lr_scheduler.LambdaLR(model_optim, lr_lambda=[lambda0])
+        scheduler = WarmupMultiStepLR(model_optim, 5, milestones=[20, 30, 40], gamma=0.1)
 
         criterion = self._select_criterion()
 
