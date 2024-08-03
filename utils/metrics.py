@@ -107,7 +107,7 @@ def metric(pred, true):
     mse = MSE(pred, true, 0.0)
     rmse = RMSE(pred, true, 0.0)
     # mape = MAPE(pred, true)
-    mape = masked_mape_torch(pred, true)
+    mape = masked_mape_torch(pred, true, 0.0)
     mspe = MSPE(pred, true)
 
     return mae, mse, rmse, mape, mspe
