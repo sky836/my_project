@@ -36,9 +36,9 @@ class Exp_stTrans(Exp_Basic):
         model = self.model_dict[self.args.model].Model(self.args).float()
 
         if self.args.is_finetune:
-            checkpoints = torch.load(self.args.best_model_path)
-            model_state_dict = checkpoints['model_state_dict']
-            msg = model.load_state_dict(model_state_dict, strict=False)
+            model_state_dict = torch.load(self.args.best_model_path)
+            # model_state_dict = checkpoints['model_state_dict']
+            msg = model.load_state_dict(model_state_dict, strict=True)
             print(msg)
 
             # # 冻结对应的参数
@@ -74,7 +74,7 @@ class Exp_stTrans(Exp_Basic):
         return criterion
 
     def vali(self, vali_data, vali_loader, criterion):
-        total_loss, maes, mses, rmses, mapes, mspes = [], [], [], [], [], []
+        total_loss, maes, rmses, mapes = [], [], [], []
         preds = []
         trues = []
         self.model.eval()
@@ -95,23 +95,20 @@ class Exp_stTrans(Exp_Basic):
                 loss = criterion(outputs, y, 0.0)
                 total_loss.append(loss.item())
 
-                mae, mse, rmse, mape, mspe = metric(outputs, y)
+                mae, rmse, mape = metric(outputs, y, 0.0, 10)
 
                 preds.append(outputs)
                 trues.append(y)
                 maes.append(mae.item())
-                mses.append(mse.item())
                 rmses.append(rmse.item())
                 mapes.append(mape.item())
-                mspes.append(mspe.item())
 
-        maes, mses, rmses, mapes, mspes = np.average(maes), np.average(mses), np.average(rmses), \
-                                     np.average(mapes), np.average(mspes)
+        maes, rmses, mapes = np.average(maes), np.average(rmses), np.average(mapes)
         total_loss = np.average(total_loss)
         preds = torch.cat(preds, dim=0)
         trues = torch.cat(trues, dim=0)
         self.model.train()
-        return total_loss, maes, mses, rmses, mapes, mspes, preds, trues
+        return total_loss, maes, rmses, mapes, preds, trues
 
     def addNoisy(self, outputs, labels):
         # outputs [batch_size, pred_len, n_nodes]
@@ -159,7 +156,7 @@ class Exp_stTrans(Exp_Basic):
         model_optim = self._select_optimizer()
         scheduler = torch.optim.lr_scheduler.MultiStepLR(
             model_optim,
-            milestones=[20, 30, 105],
+            milestones=[20, 30, 40],
             gamma=0.1
         )
         criterion = self._select_criterion()
@@ -236,8 +233,7 @@ class Exp_stTrans(Exp_Basic):
                 print_log(log, "Epoch: {} cost time: {}".format(epoch + 1, time.time() - epoch_time))
                 print_log(log, "Epoch: {} current lr: {}".format(epoch + 1, current_lr))
             train_loss = np.average(train_loss)
-            vali_loss, vali_mae, vali_mse, vali_rmse, vali_mape, vali_mspe, _, _ = self.vali(vali_data, vali_loader,
-                                                                                             criterion)
+            vali_loss, vali_mae, vali_rmse, vali_mape, _, _ = self.vali(vali_data, vali_loader, criterion)
             scheduler.step()  # 学习率调整
             if self.device == 0:
                 print_log(
@@ -245,8 +241,7 @@ class Exp_stTrans(Exp_Basic):
                     "Epoch: {0}, Steps: {1} | Train Loss: {2:.7f} Vali Loss: {3:.7f}".
                     format(epoch + 1, train_steps, train_loss, vali_loss)
                 )
-            test_loss, test_mae, test_mse, test_rmse, test_mape, \
-            test_mspe, test_preds, test_trues = self.vali(test_data, test_loader, criterion)
+            test_loss, test_mae, test_rmse, test_mape, test_preds, test_trues = self.vali(test_data, test_loader, criterion)
             if self.device == 0:
                 print_log(
                     log,
@@ -255,7 +250,7 @@ class Exp_stTrans(Exp_Basic):
                 )
                 _, pred_len, _, _ = test_preds.shape
                 for i in range(pred_len):
-                    mae, mse, rmse, mape, mspe = metric(test_preds[:, i], test_trues[:, i])
+                    mae, rmse, mape = metric(test_preds[:, i], test_trues[:, i], 0.0, 10.0)
                     print_log(
                         log,
                         f'Evaluate model on test data for horizon {i}, Test MAE: {mae}, Test RMSE: {rmse}, Test MAPE: {mape}'
@@ -291,7 +286,7 @@ class Exp_stTrans(Exp_Basic):
         x_marks = []
         y_marks = []
 
-        maes, mses, rmses, mapes, mspes = [], [], [], [], []
+        maes, rmses, mapes = [], [], []
         self.model.eval()
         with torch.no_grad():
             for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(test_loader):
@@ -307,31 +302,21 @@ class Exp_stTrans(Exp_Basic):
                     outputs = test_data.inverse_transform(outputs.reshape(-1, n_nodes, n_feats)).reshape(batch_size,
                                                                                                 pred_len, n_nodes, n_feats)
 
-                Mae, Mse, Rmse, Mape, Mspe = [], [], [], [], []
+                Mae, Rmse, Mape = [], [], []
                 for i in range(n_feats):
-                    mae, mse, rmse, mape, mspe = metric(outputs[..., i], y[..., i])
+                    mae, rmse, mape = metric(outputs[..., i], y[..., i], 0.0, 10.0)
                     Mae.append(mae.item())
-                    Mse.append(mse.item())
                     Rmse.append(rmse.item())
                     Mape.append(mape.item())
-                    Mspe.append(mspe.item())
-                    print("\tmae: {0:.7f} | mse: {1:.7f} | rmse: {2:.7f} | mape: {3:.7f} | mspe: {4:.7f}".
-                          format(mae, mse, rmse ,mape, mspe))
                 if n_feats > 1:
-                    mae, mse, rmse, mape, mspe = metric(outputs, y)
+                    mae, rmse, mape = metric(outputs, y, 0.0, 10.0)
                     Mae.append(mae.item())
-                    Mse.append(mse.item())
                     Rmse.append(rmse.item())
                     Mape.append(mape.item())
-                    Mspe.append(mspe.item())
-                    print("\tmae: {0:.7f} | mse: {1:.7f} | rmse: {2:.7f} | mape: {3:.7f} | mspe: {4:.7f}".
-                          format(mae, mse, rmse, mape, mspe))
 
                 maes.append(Mae)
-                mses.append(Mse)
                 rmses.append(Rmse)
                 mapes.append(Mape)
-                mspes.append(Mspe)
 
                 inputs = batch_x[:, :, :, :self.args.output_dim].detach().cpu().numpy()
                 if test_data.scale and self.args.inverse:
@@ -346,10 +331,8 @@ class Exp_stTrans(Exp_Basic):
                 preds.append(outputs)
                 trues.append(y)
 
-        maes, mses, rmses, mapes, mspes = np.array(maes), np.array(mses), np.array(rmses), np.array(mapes), np.array(mspes)
-        mae, mse, rmse, mape, mspe = np.average(maes, axis=0), \
-                                          np.average(mses, axis=0), np.average(rmses, axis=0), \
-                                          np.average(mapes, axis=0), np.average(mspes, axis=0)
+        maes, rmses, mapes = np.array(maes), np.array(rmses), np.array(mapes)
+        mae, rmse, mape = np.average(maes, axis=0), np.average(rmses, axis=0), np.average(mapes, axis=0)
         for i in range(self.args.output_dim):
             print('rmse:{:.7f}, mae:{:.7f}, mape:{:.7f}'.format(rmse[i], mae[i], mape[i]))
 
@@ -365,26 +348,20 @@ class Exp_stTrans(Exp_Basic):
         x_marks = np.array(x_marks)
         y_marks = np.array(y_marks)
         maes = np.array(maes)
-        mses = np.array(mses)
         rmses = np.array(rmses)
-        mspes = np.array(mspes)
         mapes = np.array(mapes)
-        print('test shape:', preds.shape, trues.shape, x_trues.shape, x_marks.shape, y_marks.shape, maes.shape,
-              mses.shape, rmses.shape, mspes.shape, mapes.shape)
-        x_trues = x_trues.reshape(-1, x_trues.shape[-2], x_trues.shape[-1])
-        x_marks = x_marks.reshape(-1, x_marks.shape[-2], x_marks.shape[-1])
-        y_marks = y_marks.reshape(-1, y_marks.shape[-2], y_marks.shape[-1])
-        print('test shape:', preds.shape, trues.shape, x_trues.shape, x_marks.shape, y_marks.shape, maes.shape,
-              mses.shape, rmses.shape, mspes.shape, mapes.shape)
+        print('test shape:', preds.shape, trues.shape, x_trues.shape, x_marks.shape, y_marks.shape, maes.shape, rmses.shape, mapes.shape)
+        x_trues = x_trues.reshape((-1, x_trues.shape[-2], x_trues.shape[-1]))
+        x_marks = x_marks.reshape((-1, x_marks.shape[-2], x_marks.shape[-1]))
+        y_marks = y_marks.reshape((-1, y_marks.shape[-2], y_marks.shape[-1]))
+        print('test shape:', preds.shape, trues.shape, x_trues.shape, x_marks.shape, y_marks.shape, maes.shape, rmses.shape, mapes.shape)
 
-        np.save(folder_path + 'metrics.npy', np.array([mae, mse, rmse, mape, mspe]))
+        np.save(folder_path + 'metrics.npy', np.array([mae, rmse, mape]))
         np.save(folder_path + 'pred.npy', preds.detach().cpu().numpy())
         np.save(folder_path + 'true.npy', trues.detach().cpu().numpy())
         np.save(folder_path + 'x_trues.npy', x_trues)
         np.save(folder_path + 'x_marks.npy', x_marks)
         np.save(folder_path + 'y_marks.npy', y_marks)
         np.save(folder_path + 'maes.npy', maes)
-        np.save(folder_path + 'mses.npy', mses)
         np.save(folder_path + 'rmses.npy', rmses)
         np.save(folder_path + 'mapes.npy', mapes)
-        np.save(folder_path + 'mspes.npy', mspes)

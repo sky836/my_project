@@ -55,7 +55,7 @@ if __name__ == '__main__':
 
 
     # 2. model path
-    parser.add_argument('--best_model_path', type=str, default='/kaggle/input/sttrans-pretrain-50-002-2016/checkpoint.pth', help='the path of pretrain model')
+    parser.add_argument('--best_model_path', type=str, default='checkpoints/stTrans_seqlen6_NYtaxi/checkpoint.pth', help='the path of pretrain model')
 
     # data loader
     parser.add_argument('--freq', type=str, default='t',
@@ -74,7 +74,7 @@ if __name__ == '__main__':
     parser.add_argument('--addaptadj', type=bool, default=True, help='if use adaptive adjacency matrices in GCN or not')
 
     # finetune task
-    parser.add_argument('--is_finetune', type=bool, default=False, help='if use pretrain model to finetune')
+    parser.add_argument('--is_finetune', type=bool, default=True, help='if use pretrain model to finetune')
 
     # model define
     parser.add_argument('--feed_forward_dim', type=int, default=256, help='')
