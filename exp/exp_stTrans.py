@@ -227,7 +227,6 @@ class Exp_stTrans(Exp_Basic):
                 if self.clip is not None:
                     torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.clip)
                 model_optim.step()
-                break
 
             if self.device == 0:
                 current_lr = model_optim.param_groups[0]['lr']
