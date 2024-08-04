@@ -158,20 +158,6 @@ class MultiLayerPerceptron(nn.Module):
 
 
 class AttentionLayer(nn.Module):
-    """Perform attention across the -2 dim (the -1 dim is `model_dim`).
-
-    Make sure the tensor is permuted to correct shape before attention.
-
-    E.g.
-    - Input shape (batch_size, in_steps, num_nodes, model_dim).
-    - Then the attention will be performed across the nodes.
-
-    Also, it supports different src and tgt length.
-
-    But must `src length == K length == V length`.
-
-    """
-
     def __init__(self, model_dim, num_heads=8, mask=False, target_dim=None):
         super().__init__()
 
@@ -475,10 +461,10 @@ class Model(nn.Module):
             )
             nn.init.xavier_uniform_(self.node_emb)
         self.pos_time = nn.init.xavier_uniform_(
-            nn.Parameter(torch.empty(self.num_patches, self.tod_embedding_dim))
+            nn.Parameter(torch.empty(self.num_patches, self.pos_dim))
         )
         self.pos_series = nn.init.xavier_uniform_(
-            nn.Parameter(torch.empty(self.num_patches, self.spatial_embedding_dim))
+            nn.Parameter(torch.empty(self.num_patches, self.pos_dim))
         )
 
         self.output_proj = nn.Linear(
@@ -517,12 +503,12 @@ class Model(nn.Module):
         if self.dow_embedding_dim > 0:
             dow_emb = self.dow_embedding(dow.long())  # (batch_size, in_steps, num_nodes, dow_embedding_dim)
             time_features.append(dow_emb[:, ::patch_size])
-        time_features.append(self.pos_time.expand(size=(batch_size, *self.time_embedding.shape)))
+        time_features.append(self.pos_time.expand(size=(batch_size, *self.pos_time.shape)))
         node_emb = self.node_emb.expand(size=(batch_size, self.num_patches, *self.node_emb.shape))
         target_features.append(node_emb)
         target_features = torch.cat(target_features, dim=-1)  # (batch_size, in_steps, num_nodes, model_dim)
         time_features = torch.cat(time_features, dim=-1)  # (batch_size, in_steps, num_nodes, model_dim)
-        pos_series = self.pos_series.expand(size=(batch_size, num_nodes, *self.series_embedding.shape))
+        pos_series = self.pos_series.expand(size=(batch_size, num_nodes, *self.pos_series.shape))
         target_features = target_features.transpose(1, 2)
         target_features = torch.cat([target_features, pos_series], dim=-1)
         target_features = target_features.transpose(1, 2)
