@@ -42,7 +42,7 @@ if __name__ == '__main__':
     # path to modify
     # 1. data and adj
     parser.add_argument('--adj_path', type=str, default=r'datasets/PEMS08/adj.npy', help='path of the adjmx')
-    parser.add_argument('--root_path', type=str, default='/kaggle/input/traffic-datasets/datasets/', help='root path of the data file')
+    parser.add_argument('--root_path', type=str, default='/kaggle/input/d/qqbb8769/traffic-datasets/datasets/', help='root path of the data file')
     parser.add_argument('--data_path', type=str, default='NYCTaxi/NYCTaxi', help='data file')
     parser.add_argument('--input_dim', type=int, default=4, help='')
     parser.add_argument('--output_dim', type=int, default=2, help='')
@@ -82,7 +82,7 @@ if __name__ == '__main__':
     parser.add_argument('--dow_embedding_dim', type=int, default=24, help='')
     parser.add_argument('--tod_embedding_dim', type=int, default=24, help='')
     parser.add_argument('--input_embedding_dim', type=int, default=24, help='')
-    parser.add_argument('--num_layers', type=int, default=2, help='')
+    parser.add_argument('--num_layers', type=int, default=4, help='')
     parser.add_argument('--use_mixed_proj', type=bool, default=True, help='')
 
     parser.add_argument('--encoder_Time_embed_dim', type=int, default=24, help='dimension of encoder time')
