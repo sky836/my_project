@@ -233,7 +233,12 @@ class WarmupLastMultiStepLR(torch.optim.lr_scheduler._LRScheduler):
             return [base_lr * (self.gamma ** self._get_step_count()) for base_lr in self.base_lrs]
         else:
             # 在warmup last阶段，学习率线性增长
-            return [base_lr * (self.beta * self._get_step_count_last()) for base_lr in self.base_lrs]
+            lrs = []
+            for base_lr in self.base_lrs:
+                lr = base_lr * (self.gamma ** self._get_step_count())
+                lr = lr * (self.beta * self._get_step_count_last())
+                lrs.append(lr)
+            return lrs
 
     def _get_step_count(self):
         count = 0
@@ -245,6 +250,6 @@ class WarmupLastMultiStepLR(torch.optim.lr_scheduler._LRScheduler):
     def _get_step_count_last(self):
         count = 0
         for warmup_epoch in self.warmup_epochs:
-            if self.last_epoch >= warmup_epoch:
+            if warmup_epoch <= self.last_epoch <= self.warmup_epochs[-1]:
                 count += 1
         return count
