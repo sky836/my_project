@@ -262,5 +262,5 @@ NYTaxi:
     adaptive_embedding_dim: 0
     feed_forward_dim: 256
     num_heads: 4
-    num_layers: 3
+    num_layers: 4
     dropout: 0.1

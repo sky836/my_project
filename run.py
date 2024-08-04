@@ -69,12 +69,12 @@ if __name__ == '__main__':
 
     # model define
     parser.add_argument('--feed_forward_dim', type=int, default=256, help='')
-    parser.add_argument('--adaptive_embedding_dim', type=int, default=0, help='')
-    parser.add_argument('--spatial_embedding_dim', type=int, default=40, help='')
-    parser.add_argument('--dow_embedding_dim', type=int, default=24, help='')
-    parser.add_argument('--tod_embedding_dim', type=int, default=24, help='')
-    parser.add_argument('--input_embedding_dim', type=int, default=24, help='')
-    parser.add_argument('--num_layers', type=int, default=5, help='')
+    parser.add_argument('--pos_dim', type=int, default=32, help='')
+    parser.add_argument('--spatial_embedding_dim', type=int, default=48, help='')
+    parser.add_argument('--dow_embedding_dim', type=int, default=32, help='')
+    parser.add_argument('--tod_embedding_dim', type=int, default=32, help='')
+    parser.add_argument('--input_embedding_dim', type=int, default=32, help='')
+    parser.add_argument('--num_layers', type=int, default=4, help='')
     parser.add_argument('--use_mixed_proj', type=bool, default=True, help='')
     parser.add_argument('--n_heads', type=int, default=4, help='num of heads')
     parser.add_argument('--dropout', type=float, default=0.1, help='dropout')
@@ -95,7 +95,8 @@ if __name__ == '__main__':
     parser.add_argument('--learning_rate', type=float, default=0.001, help='optimizer learning rate')
     parser.add_argument('--weight_decay', type=float, default=0.0003, help='optimizer weight_decay')
     parser.add_argument('--des', type=str, default='Exp', help='exp description')
-    parser.add_argument('--loss', type=str, default='MSE', help='loss function')
+    parser.add_argument('--loss', type=str, default='masked_huberLoss',
+                        help='loss function, options:[masked_mae, masked_huberLoss]')
     parser.add_argument('--lradj', type=str, default='type1', help='adjust learning rate')
     parser.add_argument('--use_amp', action='store_true', help='use automatic mixed precision training', default=True)
 

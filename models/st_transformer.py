@@ -448,14 +448,9 @@ class Model(nn.Module):
         self.dow_embedding_dim = configs.dow_embedding_dim
         self.spatial_embedding_dim = configs.spatial_embedding_dim
         self.feed_forward_dim = configs.feed_forward_dim
-        self.model_dim = (
-            configs.input_embedding_dim
-            + configs.tod_embedding_dim
-            + configs.dow_embedding_dim
-            + configs.spatial_embedding_dim
-        )
-        self.time_dim = (configs.tod_embedding_dim * 2 + configs.dow_embedding_dim)
-        self.target_dim = (configs.input_embedding_dim + configs.spatial_embedding_dim * 2)
+        self.pos_dim = configs.pos_dim
+        self.time_dim = (configs.tod_embedding_dim + configs.dow_embedding_dim + configs.pos_dim)
+        self.target_dim = (configs.input_embedding_dim + configs.spatial_embedding_dim + configs.pos_dim)
         self.num_heads = configs.n_heads
         self.num_layers = configs.num_layers
         self.use_mixed_proj = configs.use_mixed_proj
@@ -479,20 +474,16 @@ class Model(nn.Module):
                 torch.empty(self.num_nodes, self.spatial_embedding_dim)
             )
             nn.init.xavier_uniform_(self.node_emb)
-        self.time_embedding = nn.init.xavier_uniform_(
+        self.pos_time = nn.init.xavier_uniform_(
             nn.Parameter(torch.empty(self.num_patches, self.tod_embedding_dim))
         )
-        self.series_embedding = nn.init.xavier_uniform_(
+        self.pos_series = nn.init.xavier_uniform_(
             nn.Parameter(torch.empty(self.num_patches, self.spatial_embedding_dim))
         )
 
-        if self.use_mixed_proj:
-            self.output_proj = nn.Linear(
-                self.target_dim * self.num_patches, self.out_steps * self.output_dim
-            )
-        else:
-            self.temporal_proj = nn.Linear(self.in_steps, self.out_steps)
-            self.output_proj = nn.Linear(self.target_dim*2, self.output_dim)
+        self.output_proj = nn.Linear(
+            self.target_dim * self.num_patches, self.out_steps * self.output_dim
+        )
 
         # ===================================encoding special=============================================
         self.merge_attn_layers = nn.ModuleList(
@@ -521,29 +512,19 @@ class Model(nn.Module):
         target_features = [x]
         time_features = []
         if self.tod_embedding_dim > 0:
-            tod_emb = self.tod_embedding(
-                (tod * self.steps_per_day).long()
-            )  # (batch_size, in_steps, num_nodes, tod_embedding_dim)
+            tod_emb = self.tod_embedding((tod * self.steps_per_day).long())  # (batch_size, in_steps, num_nodes, tod_embedding_dim)
             time_features.append(tod_emb[:, ::patch_size])
         if self.dow_embedding_dim > 0:
-            dow_emb = self.dow_embedding(
-                dow.long()
-            )  # (batch_size, in_steps, num_nodes, dow_embedding_dim)
+            dow_emb = self.dow_embedding(dow.long())  # (batch_size, in_steps, num_nodes, dow_embedding_dim)
             time_features.append(dow_emb[:, ::patch_size])
-        time_features.append(self.time_embedding.expand(
-                size=(batch_size, *self.time_embedding.shape)
-            ))
-        node_emb = self.node_emb.expand(
-            size=(batch_size, self.num_patches, *self.node_emb.shape)
-        )
+        time_features.append(self.pos_time.expand(size=(batch_size, *self.time_embedding.shape)))
+        node_emb = self.node_emb.expand(size=(batch_size, self.num_patches, *self.node_emb.shape))
         target_features.append(node_emb)
         target_features = torch.cat(target_features, dim=-1)  # (batch_size, in_steps, num_nodes, model_dim)
         time_features = torch.cat(time_features, dim=-1)  # (batch_size, in_steps, num_nodes, model_dim)
-        series_emb = self.series_embedding.expand(
-            size=(batch_size, num_nodes, *self.series_embedding.shape)
-        )
+        pos_series = self.pos_series.expand(size=(batch_size, num_nodes, *self.series_embedding.shape))
         target_features = target_features.transpose(1, 2)
-        target_features = torch.cat([target_features, series_emb], dim=-1)
+        target_features = torch.cat([target_features, pos_series], dim=-1)
         target_features = target_features.transpose(1, 2)
 
         for i in range(self.num_layers):
@@ -566,7 +547,3 @@ class Model(nn.Module):
 
         return out, time
 
-
-if __name__ == "__main__":
-    model = Model(207, 12, 12)
-    summary(model, [(1, 12, 207, 3), (1, 12, 207, 3)])
