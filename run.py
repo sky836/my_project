@@ -42,7 +42,7 @@ if __name__ == '__main__':
     # path to modify
     # 1. data and adj
     parser.add_argument('--adj_path', type=str, default=r'datasets/PEMS08/adj.npy', help='path of the adjmx')
-    parser.add_argument('--root_path', type=str, default='/kaggle/input/d/qqbb8769/traffic-datasets/datasets/', help='root path of the data file')
+    parser.add_argument('--root_path', type=str, default='/kaggle/input/traffic-datasets/datasets/', help='root path of the data file')
     parser.add_argument('--data_path', type=str, default='NYCTaxi/NYCTaxi', help='data file')
     parser.add_argument('--input_dim', type=int, default=4, help='')
     parser.add_argument('--output_dim', type=int, default=2, help='')
@@ -59,14 +59,6 @@ if __name__ == '__main__':
     # finetune task
     parser.add_argument('--is_finetune', type=bool, default=False, help='if use pretrain model to finetune')
 
-    # data loader
-    parser.add_argument('--freq', type=str, default='t',
-                        help='freq for time features encoding, options:[s:secondly, t:minutely, h:hourly, d:daily, b:business days, w:weekly, m:monthly], you can also use more detailed freq like 15min or 3h')
-    parser.add_argument('--checkpoints', type=str, default='./checkpoints/', help='location of model checkpoints')
-    parser.add_argument('--log_path', type=str, default='./myTrain_logs/', help='location of train logs')
-    parser.add_argument('--time_to_feature', type=int, default=0,
-                        help='Adding time features to the data. options: [0, 1], 0 stands for 2 features. 1 stands for 4 features')
-
     # forecasting task
     parser.add_argument('--inverse', action='store_true', help='inverse output data', default=True)
 
@@ -78,29 +70,18 @@ if __name__ == '__main__':
     # model define
     parser.add_argument('--feed_forward_dim', type=int, default=256, help='')
     parser.add_argument('--adaptive_embedding_dim', type=int, default=0, help='')
-    parser.add_argument('--spatial_embedding_dim', type=int, default=40, help='')
-    parser.add_argument('--dow_embedding_dim', type=int, default=24, help='')
-    parser.add_argument('--tod_embedding_dim', type=int, default=24, help='')
-    parser.add_argument('--input_embedding_dim', type=int, default=24, help='')
+    parser.add_argument('--spatial_embedding_dim', type=int, default=32, help='')
+    parser.add_argument('--dow_embedding_dim', type=int, default=32, help='')
+    parser.add_argument('--tod_embedding_dim', type=int, default=32, help='')
+    parser.add_argument('--input_embedding_dim', type=int, default=32, help='')
     parser.add_argument('--num_layers', type=int, default=3, help='')
     parser.add_argument('--use_mixed_proj', type=bool, default=True, help='')
-
-    parser.add_argument('--encoder_Time_embed_dim', type=int, default=24, help='dimension of encoder time')
-    parser.add_argument('--encoder_Target_embed_dim', type=int, default=24, help='dimension of encoder target')
-    parser.add_argument('--decoder_Time_embed_dim', type=int, default=24, help='dimension of decoder time')
-    parser.add_argument('--decoder_Target_embed_dim', type=int, default=24, help='dimension of decoder target')
-    parser.add_argument('--d_model', type=int, default=96, help='dimension of timeLinear')
     parser.add_argument('--n_heads', type=int, default=4, help='num of heads')
-    parser.add_argument('--e_layers', type=int, default=3, help='num of encoder layers')
-    parser.add_argument('--d_layers', type=int, default=3, help='num of decoder layers')
     parser.add_argument('--dropout', type=float, default=0.4, help='dropout')
     parser.add_argument('--embed', type=str, default='fixed',
                         help='time features encoding, options:[timeF, fixed, learned]')
-    parser.add_argument('--output_attention', type=bool, default=False, help='whether to output attention in ecoder')
     parser.add_argument('--patch_size', type=int, default=1, help='The size of one patch')
     parser.add_argument('--label_patch_size', type=int, default=1, help='The size of one  decoder input patch')
-    parser.add_argument('--time_channel', type=int, default=4, help='The channel of time inputs')
-    parser.add_argument('--target_channel', type=int, default=5, help='The channel of target inputs')
     parser.add_argument('--pretrain_layers', type=int, default=1, help='num of pretrain decoder layers')
     parser.add_argument('--mask_ratio', type=float, default=0.5, help='mask ratio of pretrain')
 
@@ -123,6 +104,14 @@ if __name__ == '__main__':
     parser.add_argument('--gpu', type=int, default=0, help='gpu')
     parser.add_argument('--use_multi_gpu', type=bool, help='use multiple gpus', default=False)
     parser.add_argument('--devices', type=str, default='0,1', help='device ids of multile gpus')
+
+    # data loader
+    parser.add_argument('--freq', type=str, default='t',
+                        help='freq for time features encoding, options:[s:secondly, t:minutely, h:hourly, d:daily, b:business days, w:weekly, m:monthly], you can also use more detailed freq like 15min or 3h')
+    parser.add_argument('--checkpoints', type=str, default='./checkpoints/', help='location of model checkpoints')
+    parser.add_argument('--log_path', type=str, default='./myTrain_logs/', help='location of train logs')
+    parser.add_argument('--time_to_feature', type=int, default=0,
+                        help='Adding time features to the data. options: [0, 1], 0 stands for 2 features. 1 stands for 4 features')
 
     args = parser.parse_args()
     args.use_gpu = True if torch.cuda.is_available() and args.use_gpu else False
@@ -166,13 +155,12 @@ if __name__ == '__main__':
                 torch.cuda.set_device(int(os.environ['LOCAL_RANK']))
             # setting record of experiments
             exp = Exp(args)
-            setting = '{}_{}_sl{}_pl{}_el{}_dl{}_eh{}_{}_{}'.format(
+            setting = '{}_{}_sl{}_pl{}_l{}_h{}_{}_{}'.format(
                 args.task_name,
                 args.data,
                 args.seq_len,
                 args.pred_len,
-                args.e_layers,
-                args.d_layers,
+                args.num_layers,
                 args.n_heads,
                 formatted_string,
                 ii)
@@ -188,13 +176,12 @@ if __name__ == '__main__':
                 destroy_process_group()
     else:
         ii = 0
-        setting = '{}_{}_sl{}_pl{}_el{}_dl{}_eh{}_{}_{}'.format(
+        setting = '{}_{}_sl{}_pl{}_l{}_h{}_{}_{}'.format(
             args.task_name,
             args.data,
             args.seq_len,
             args.pred_len,
-            args.e_layers,
-            args.d_layers,
+            args.num_layers,
             args.n_heads,
             formatted_string,
             ii)

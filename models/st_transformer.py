@@ -447,14 +447,12 @@ class Model(nn.Module):
         self.tod_embedding_dim = configs.tod_embedding_dim
         self.dow_embedding_dim = configs.dow_embedding_dim
         self.spatial_embedding_dim = configs.spatial_embedding_dim
-        self.adaptive_embedding_dim = configs.adaptive_embedding_dim
         self.feed_forward_dim = configs.feed_forward_dim
         self.model_dim = (
             configs.input_embedding_dim
             + configs.tod_embedding_dim
             + configs.dow_embedding_dim
             + configs.spatial_embedding_dim
-            + configs.adaptive_embedding_dim
         )
         self.time_dim = (configs.tod_embedding_dim * 2 + configs.dow_embedding_dim)
         self.target_dim = (configs.input_embedding_dim + configs.spatial_embedding_dim * 2)
@@ -482,10 +480,6 @@ class Model(nn.Module):
                 torch.empty(self.num_nodes, self.spatial_embedding_dim)
             )
             nn.init.xavier_uniform_(self.node_emb)
-        if self.adaptive_embedding_dim > 0:
-            self.adaptive_embedding = nn.init.xavier_uniform_(
-                nn.Parameter(torch.empty(self.num_patches, self.num_nodes, self.adaptive_embedding_dim))
-            )
         self.time_embedding = nn.init.xavier_uniform_(
             nn.Parameter(torch.empty(self.num_patches, self.tod_embedding_dim))
         )
@@ -540,11 +534,6 @@ class Model(nn.Module):
         time_features.append(self.time_embedding.expand(
                 size=(batch_size, *self.time_embedding.shape)
             ))
-        if self.adaptive_embedding_dim > 0:
-            adp_emb = self.adaptive_embedding.expand(
-                size=(batch_size, *self.adaptive_embedding.shape)
-            )
-            target_features.append(adp_emb)
         node_emb = self.node_emb.expand(
             size=(batch_size, self.num_patches, *self.node_emb.shape)
         )
