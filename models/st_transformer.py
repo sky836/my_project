@@ -458,7 +458,6 @@ class Model(nn.Module):
         self.target_dim = (configs.input_embedding_dim + configs.spatial_embedding_dim * 2)
         self.num_heads = configs.n_heads
         self.num_layers = configs.num_layers
-        self.dec_layers = configs.d_layers
         self.use_mixed_proj = configs.use_mixed_proj
         self.patch_size = configs.patch_size
         self.num_nodes = configs.num_nodes
