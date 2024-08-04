@@ -9,7 +9,7 @@ from torchinfo import summary
 from data_provider.data_factory import data_provider
 from exp.exp_basic import Exp_Basic
 from utils.metrics import metric, masked_mae, masked_huber_loss
-from utils.tools import EarlyStopping, save_trainlog, print_log, WarmupMultiStepLR
+from utils.tools import EarlyStopping, save_trainlog, print_log, WarmupMultiStepLR, WarmupLastMultiStepLR
 import torch
 import torch.nn as nn
 from torch import optim
@@ -162,7 +162,7 @@ class Exp_stTrans(Exp_Basic):
         # )
         # 设置warm up的轮次为100次
         # scheduler = WarmupMultiStepLR(model_optim, self.args.warmup_epochs, milestones=[20, 30, 80], gamma=0.1)
-        scheduler = WarmupMultiStepLR(model_optim, warmup_epochs=[60, 70, 80, 90], milestones=[20, 30, 45], gamma=0.1)
+        scheduler = WarmupLastMultiStepLR(model_optim, warmup_epochs=[65, 75, 85, 95], milestones=[20, 30, 45], gamma=0.1)
 
         criterion = self._select_criterion()
 
