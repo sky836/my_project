@@ -218,3 +218,33 @@ class WarmupMultiStepLR(torch.optim.lr_scheduler._LRScheduler):
             if self.last_epoch >= milestone:
                 count += 1
         return count
+
+
+class WarmupLastMultiStepLR(torch.optim.lr_scheduler._LRScheduler):
+    def __init__(self, optimizer, warmup_epochs, milestones, gamma=0.1, beta=2, last_epoch=-1):
+        self.warmup_epochs = warmup_epochs  # 列表类型
+        self.milestones = milestones
+        self.gamma = gamma
+        self.beta = beta
+        super(WarmupLastMultiStepLR, self).__init__(optimizer, last_epoch)
+
+    def get_lr(self):
+        if self.last_epoch < self.warmup_epochs[0]:
+            return [base_lr * (self.gamma ** self._get_step_count()) for base_lr in self.base_lrs]
+        else:
+            # 在warmup last阶段，学习率线性增长
+            return [base_lr * (self.beta * self._get_step_count_last()) for base_lr in self.base_lrs]
+
+    def _get_step_count(self):
+        count = 0
+        for milestone in self.milestones:
+            if self.last_epoch >= milestone:
+                count += 1
+        return count
+
+    def _get_step_count_last(self):
+        count = 0
+        for warmup_epoch in self.warmup_epochs:
+            if self.last_epoch >= warmup_epoch:
+                count += 1
+        return count

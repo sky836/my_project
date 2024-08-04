@@ -34,7 +34,7 @@ if __name__ == '__main__':
     # basic config
     parser.add_argument('--task_name', type=str, required=False, default='stTrans',
                         help='task name, options:[forcast, STEP, timeLinear, GWNET, Pretrain, STAEformer, stTrans, stTrans_mae]')
-    parser.add_argument('--is_training', type=int, required=False, default=1, help='status')
+    parser.add_argument('--is_training', type=int, required=False, default=0, help='status')
     parser.add_argument('--model', type=str, required=False, default='stTrans',
                         help='model name, options: [Taformer, STEP, timeLinear, GWNET, '
                              'Pretrain, VanillaTransformer, SingleNodeGWNET, STAEformer, stTrans, timeModel, stTrans_mae]')
@@ -42,7 +42,7 @@ if __name__ == '__main__':
     # path to modify
     # 1. data and adj
     parser.add_argument('--adj_path', type=str, default=r'datasets/PEMS08/adj.npy', help='path of the adjmx')
-    parser.add_argument('--root_path', type=str, default='/kaggle/input/d/qqbb8769/traffic-datasets/datasets/', help='root path of the data file')
+    parser.add_argument('--root_path', type=str, default='/kaggle/input/traffic-datasets/datasets/', help='root path of the data file')
     parser.add_argument('--data_path', type=str, default='NYCTaxi/NYCTaxi', help='data file')
     parser.add_argument('--input_dim', type=int, default=4, help='')
     parser.add_argument('--output_dim', type=int, default=2, help='')
@@ -56,6 +56,8 @@ if __name__ == '__main__':
 
     # 2. model path
     parser.add_argument('--best_model_path', type=str, default='checkpoints/stTrans_seqlen6_NYtaxi/checkpoint.pth', help='the path of pretrain model')
+    # finetune task
+    parser.add_argument('--is_finetune', type=bool, default=False, help='if use pretrain model to finetune')
 
     # data loader
     parser.add_argument('--freq', type=str, default='t',
@@ -72,9 +74,6 @@ if __name__ == '__main__':
     parser.add_argument('--mode', type=str, default='predict', help='choose the mode of model. options: [pretrain, predict]')
     parser.add_argument('--gcn_bool', type=bool, default=True, help='if use GCN in model or not')
     parser.add_argument('--addaptadj', type=bool, default=True, help='if use adaptive adjacency matrices in GCN or not')
-
-    # finetune task
-    parser.add_argument('--is_finetune', type=bool, default=False, help='if use pretrain model to finetune')
 
     # model define
     parser.add_argument('--feed_forward_dim', type=int, default=256, help='')
@@ -200,7 +199,7 @@ if __name__ == '__main__':
             formatted_string,
             ii)
 
-        setting = 'stTrans_seq_len144_addSpace'
+        setting = 'stTrans_seqlen6_NYtaxi'
 
         exp = Exp(args)
         if args.task_name != 'Pretrain':

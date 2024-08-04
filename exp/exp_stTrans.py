@@ -161,7 +161,8 @@ class Exp_stTrans(Exp_Basic):
         #     gamma=0.1
         # )
         # 设置warm up的轮次为100次
-        scheduler = WarmupMultiStepLR(model_optim, self.args.warmup_epochs, milestones=[20, 30, 80], gamma=0.1)
+        # scheduler = WarmupMultiStepLR(model_optim, self.args.warmup_epochs, milestones=[20, 30, 80], gamma=0.1)
+        scheduler = WarmupMultiStepLR(model_optim, warmup_epochs=[60, 70, 80, 90], milestones=[20, 30, 45], gamma=0.1)
 
         criterion = self._select_criterion()
 
@@ -299,7 +300,7 @@ class Exp_stTrans(Exp_Basic):
 
                 outputs, _ = self.model(batch_x, batch_y)
 
-                y = batch_y[..., self.args.output_dim]
+                y = batch_y[..., :self.args.output_dim]
 
                 if test_data.scale and self.args.inverse:
                     batch_size, pred_len, n_nodes, n_feats = outputs.shape
