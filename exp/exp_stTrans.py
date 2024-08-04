@@ -96,7 +96,7 @@ class Exp_stTrans(Exp_Basic):
                 loss = criterion(outputs, y, 0.0)
                 total_loss.append(loss.item())
 
-                mae, rmse, mape = metric(outputs, y, 0.0, 10)
+                mae, rmse, mape = metric(outputs, y, 0.0, self.args.mask_threshold)
 
                 preds.append(outputs)
                 trues.append(y)

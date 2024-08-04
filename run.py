@@ -47,6 +47,7 @@ if __name__ == '__main__':
     parser.add_argument('--data', type=str, required=False, default='CHIBike', help='dataset type, Pretrain_Forecast')
     parser.add_argument('--num_nodes', type=int, required=False, default=270, help='the nodes of dataset')
     parser.add_argument('--steps_per_day', type=int, default=48, help='')
+    parser.add_argument('--mask_threshold', type=int, default=5, help='')
     parser.add_argument('--input_dim', type=int, default=4, help='')
     parser.add_argument('--output_dim', type=int, default=2, help='')
     parser.add_argument('--seq_len', type=int, default=6, help='input sequence length')
