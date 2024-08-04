@@ -255,7 +255,7 @@ class Exp_stTrans(Exp_Basic):
                 )
                 _, pred_len, _, _ = test_preds.shape
                 for i in range(pred_len):
-                    mae, rmse, mape = metric(test_preds[:, i], test_trues[:, i], 0.0, 10.0)
+                    mae, rmse, mape = metric(test_preds[:, i], test_trues[:, i], 0.0, self.args.mask_threshold)
                     print_log(
                         log,
                         f'Evaluate model on test data for horizon {i}, Test MAE: {mae}, Test RMSE: {rmse}, Test MAPE: {mape}'
@@ -309,12 +309,12 @@ class Exp_stTrans(Exp_Basic):
 
                 Mae, Rmse, Mape = [], [], []
                 for i in range(n_feats):
-                    mae, rmse, mape = metric(outputs[..., i], y[..., i], 0.0, 10.0)
+                    mae, rmse, mape = metric(outputs[..., i], y[..., i], 0.0, self.args.mask_threshold)
                     Mae.append(mae.item())
                     Rmse.append(rmse.item())
                     Mape.append(mape.item())
                 if n_feats > 1:
-                    mae, rmse, mape = metric(outputs, y, 0.0, 10.0)
+                    mae, rmse, mape = metric(outputs, y, 0.0, self.args.mask_threshold)
                     Mae.append(mae.item())
                     Rmse.append(rmse.item())
                     Mape.append(mape.item())
