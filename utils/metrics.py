@@ -122,7 +122,7 @@ def masked_mae_torch(preds, labels, null_val=np.nan, mask_val=np.nan):
     loss = torch.abs(torch.sub(preds, labels))
     loss = loss * mask
     loss = torch.where(torch.isnan(loss), torch.zeros_like(loss), loss)
-    return np.average(loss)
+    return np.average(loss.detach())
 
 
 def MSPE(preds, labels, null_val: float = np.nan):
