@@ -77,7 +77,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_layers', type=int, default=3, help='')
     parser.add_argument('--use_mixed_proj', type=bool, default=True, help='')
     parser.add_argument('--n_heads', type=int, default=4, help='num of heads')
-    parser.add_argument('--dropout', type=float, default=0.4, help='dropout')
+    parser.add_argument('--dropout', type=float, default=0.1, help='dropout')
     parser.add_argument('--embed', type=str, default='fixed',
                         help='time features encoding, options:[timeF, fixed, learned]')
     parser.add_argument('--patch_size', type=int, default=1, help='The size of one patch')
