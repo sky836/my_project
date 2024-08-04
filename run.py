@@ -75,7 +75,7 @@ if __name__ == '__main__':
     parser.add_argument('--dow_embedding_dim', type=int, default=24, help='')
     parser.add_argument('--tod_embedding_dim', type=int, default=24, help='')
     parser.add_argument('--input_embedding_dim', type=int, default=24, help='')
-    parser.add_argument('--num_layers', type=int, default=4, help='')
+    parser.add_argument('--num_layers', type=int, default=5, help='')
     parser.add_argument('--use_mixed_proj', type=bool, default=True, help='')
     parser.add_argument('--n_heads', type=int, default=4, help='num of heads')
     parser.add_argument('--dropout', type=float, default=0.1, help='dropout')
