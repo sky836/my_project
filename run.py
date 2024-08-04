@@ -82,7 +82,7 @@ if __name__ == '__main__':
     parser.add_argument('--dow_embedding_dim', type=int, default=24, help='')
     parser.add_argument('--tod_embedding_dim', type=int, default=24, help='')
     parser.add_argument('--input_embedding_dim', type=int, default=24, help='')
-    parser.add_argument('--num_layers', type=int, default=4, help='')
+    parser.add_argument('--num_layers', type=int, default=3, help='')
     parser.add_argument('--use_mixed_proj', type=bool, default=True, help='')
 
     parser.add_argument('--encoder_Time_embed_dim', type=int, default=24, help='dimension of encoder time')
@@ -93,7 +93,7 @@ if __name__ == '__main__':
     parser.add_argument('--n_heads', type=int, default=4, help='num of heads')
     parser.add_argument('--e_layers', type=int, default=3, help='num of encoder layers')
     parser.add_argument('--d_layers', type=int, default=3, help='num of decoder layers')
-    parser.add_argument('--dropout', type=float, default=0.1, help='dropout')
+    parser.add_argument('--dropout', type=float, default=0.4, help='dropout')
     parser.add_argument('--embed', type=str, default='fixed',
                         help='time features encoding, options:[timeF, fixed, learned]')
     parser.add_argument('--output_attention', type=bool, default=False, help='whether to output attention in ecoder')
