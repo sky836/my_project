@@ -270,7 +270,7 @@ class Exp_stTrans(Exp_Basic):
 
             if self.device == 0:
                 writer.add_scalar(scalar_value=train_loss, global_step=epoch, tag='Loss/train')
-                writer.add_scalar(scalar_value=vali_loss, global_step=epoch, tag='Loss/valid')
+                writer.add_scalar(scalar_value=vali_mae, global_step=epoch, tag='Loss/valid')
 
         best_model_path = path + 'checkpoint.pth'
         self.model.load_state_dict(torch.load(best_model_path))
