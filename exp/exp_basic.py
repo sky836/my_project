@@ -21,9 +21,8 @@ class Exp_Basic(object):
             'timeModel': timeModel,
             'stTrans_mae': stTrans_tmae
         }
-        self.clip = None
-        # self.clip = 5
-        self.device = self._acquire_device()
+        self.clip = self.args.clip
+        # self.device = self._acquire_device()
         self.cfg = cfg
         self.model = self._build_model().to(self.device)
         if self.args.use_multi_gpu and self.args.use_gpu:

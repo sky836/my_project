@@ -53,6 +53,7 @@ if __name__ == '__main__':
     parser.add_argument('--seq_len', type=int, default=6, help='input sequence length')
     parser.add_argument('--label_len', type=int, default=12*24*7, help='start token length')
     parser.add_argument('--pred_len', type=int, default=1, help='prediction sequence length')
+    parser.add_argument('--clip', type=int, default=5, help='clip grad')
 
 
     # 2. model path
