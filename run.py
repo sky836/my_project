@@ -42,7 +42,7 @@ if __name__ == '__main__':
     # path to modify
     # 1. data and adj
     parser.add_argument('--adj_path', type=str, default=r'datasets/PEMS08/adj.npy', help='path of the adjmx')
-    parser.add_argument('--root_path', type=str, default='/kaggle/input/d/qqbb8769/traffic-datasets/datasets/', help='root path of the data file')
+    parser.add_argument('--root_path', type=str, default='/kaggle/input/traffic-datasets/datasets/', help='root path of the data file')
     parser.add_argument('--data_path', type=str, default='T-Drive/T-Drive', help='data file')
     parser.add_argument('--data', type=str, required=False, default='TDrive', help='dataset type, Pretrain_Forecast')
     parser.add_argument('--num_nodes', type=int, required=False, default=1024, help='the nodes of dataset')
