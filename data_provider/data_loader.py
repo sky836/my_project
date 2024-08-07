@@ -654,9 +654,9 @@ class Dataset_Pretrain_PEMS_AlignTask(Dataset):
         labels = self.labels[s_begin:s_end]
 
         if np.all(labels == 1):
-            label = np.array(1)
+            label = torch.tensor(1, dtype=torch.long)
         else:
-            label = np.array(0)
+            label = torch.tensor(0, dtype=torch.long)
 
         print('label shape:', label.shape)
         print('data shape:', data.shape)
