@@ -3,7 +3,7 @@ import torch
 from torch.nn.parallel import DistributedDataParallel as DDP
 
 from models import timeLinear, GWNET, taformerPredict, taformerPretrain, vanillaTransformer, singleNodeGWNET, \
-    STAEformer, swin_transformer, st_transformer, timeModel, st_pretrain, stTrans_tmae
+    STAEformer, swin_transformer, st_transformer, timeModel, st_pretrain, stTrans_tmae, st_pretrainClass
 
 
 class Exp_Basic(object):
@@ -14,6 +14,7 @@ class Exp_Basic(object):
             'timeLinear': timeLinear,
             'GWNET': GWNET,
             'Pretrain': st_pretrain,
+            'Pretrain_class': st_pretrainClass,
             'VanillaTransformer': vanillaTransformer,
             'SingleNodeGWNET':singleNodeGWNET,
             'STAEformer': STAEformer,

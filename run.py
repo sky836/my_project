@@ -11,6 +11,7 @@ from exp.exp_timeLinear import Exp_TimeLinear
 from exp.exp_GWNET import Exp_GWNET
 from exp.exp_pretrain import Exp_Pretrain
 from exp.exp_stTrans_mae import Exp_stTrans_mae
+from exp.exp_pretrain_class import Exp_Pretrain_Class
 # from utils.print_args import print_args
 import random
 import numpy as np
@@ -32,26 +33,27 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Taformer')
 
     # basic config
-    parser.add_argument('--task_name', type=str, required=False, default='stTrans',
-                        help='task name, options:[forcast, STEP, timeLinear, GWNET, Pretrain, STAEformer, stTrans, stTrans_mae]')
-    parser.add_argument('--is_training', type=int, required=False, default=1, help='status')
-    parser.add_argument('--model', type=str, required=False, default='stTrans',
-                        help='model name, options: [Taformer, STEP, timeLinear, GWNET, '
+    parser.add_argument('--task_name', type=str, required=False, default='Pretrain_class',
+                        help='task name, options:[forcast, STEP, timeLinear, GWNET, Pretrain, STAEformer, stTrans, '
+                             'stTrans_mae, Pretrain_class]')
+    parser.add_argument('--is_training', type=int, required=False, default=1, help='train or test')
+    parser.add_argument('--model', type=str, required=False, default='Pretrain_class',
+                        help='model name, options: [Taformer, STEP, timeLinear, GWNET, Pretrain_class '
                              'Pretrain, VanillaTransformer, SingleNodeGWNET, STAEformer, stTrans, timeModel, stTrans_mae]')
 
     # path to modify
     # 1. data and adj
     parser.add_argument('--adj_path', type=str, default=r'datasets/PEMS08/adj.npy', help='path of the adjmx')
     parser.add_argument('--root_path', type=str, default='/kaggle/input/traffic-datasets/datasets/', help='root path of the data file')
-    parser.add_argument('--data_path', type=str, default='PEMS03/data.npz', help='data file')
-    parser.add_argument('--data', type=str, required=False, default='PEMS03', help='dataset type, Pretrain_Forecast')
-    parser.add_argument('--num_nodes', type=int, required=False, default=358, help='the nodes of dataset')
+    parser.add_argument('--data_path', type=str, default='PEMS08/data.npz', help='data file')
+    parser.add_argument('--data', type=str, required=False, default='Pretrain_Class', help='dataset type, [Pretrain_Forecast, Pretrain_Class]')
+    parser.add_argument('--num_nodes', type=int, required=False, default=170, help='the nodes of dataset')
     parser.add_argument('--steps_per_day', type=int, default=288, help='')
     parser.add_argument('--mask_threshold', type=int, default=0, help='')
     parser.add_argument('--input_dim', type=int, default=3, help='')
     parser.add_argument('--output_dim', type=int, default=1, help='')
     parser.add_argument('--seq_len', type=int, default=12, help='input sequence length')
-    parser.add_argument('--label_len', type=int, default=12*24*7, help='start token length')
+    parser.add_argument('--label_len', type=int, default=12, help='start token length')
     parser.add_argument('--patch_size', type=int, default=1, help='The size of one patch')
     parser.add_argument('--pred_len', type=int, default=12, help='prediction sequence length')
     parser.add_argument('--clip', type=int, default=None, help='clip grad')
@@ -80,7 +82,7 @@ if __name__ == '__main__':
     parser.add_argument('--input_embedding_dim', type=int, default=24, help='')
     parser.add_argument('--num_layers', type=int, default=4, help='')
     parser.add_argument('--use_mixed_proj', type=bool, default=True, help='')
-    parser.add_argument('--n_heads', type=int, default=8, help='num of heads')
+    parser.add_argument('--n_heads', type=int, default=4, help='num of heads')
     parser.add_argument('--dropout', type=float, default=0.1, help='dropout')
     parser.add_argument('--embed', type=str, default='fixed',
                         help='time features encoding, options:[timeF, fixed, learned]')
@@ -143,6 +145,8 @@ if __name__ == '__main__':
         Exp = Exp_stTrans
     elif args.task_name == 'stTrans_mae':
         Exp = Exp_stTrans_mae
+    elif args.task_name == 'Pretrain_class':
+        Exp = Exp_Pretrain_Class
     else:
         Exp = Exp_Forecast
 

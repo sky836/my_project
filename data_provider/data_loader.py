@@ -620,14 +620,14 @@ class Dataset_Pretrain_PEMS_AlignTask(Dataset):
         else:
             data = data
 
-        num_samples, num_nodes = data.shape
-        if self.time_to_feature == 0:
-            processed_data = np.concatenate([np.expand_dims(data, axis=-1), time], axis=-1)
-        else:
-            processed_data = data
+        data = data[border1:border2]
+        time = time[border1:border2]
+        processed_data = np.expand_dims(data, axis=-1)
+        processed_data = np.concatenate([processed_data, time], axis=-1)  # 匹配的数据 [l, n, c]
 
-        index_data = np.random.randint(0, num_samples, size=num_samples+num_samples//2)
-        index_time = np.random.randint(0, num_samples, size=num_samples+num_samples//2)
+        l = data.shape[0]
+        index_data = np.random.randint(0, l, size=l+l//2)
+        index_time = np.random.randint(0, l, size=l+l//2)
         mask = index_data != index_time
         index_data = index_data[mask]
         index_time = index_time[mask]
@@ -636,7 +636,8 @@ class Dataset_Pretrain_PEMS_AlignTask(Dataset):
         sample_times = time[index_time]
 
         sample_datas = np.expand_dims(sample_datas, axis=-1)
-        samples = np.concatenate([sample_datas, sample_times], axis=-1)
+        samples = np.concatenate([sample_datas, sample_times], axis=-1)  # 不匹配的数据 [l, n, c]
+
         labels = np.zeros(len(samples) + len(processed_data))
 
         samples = np.concatenate([samples, processed_data])
@@ -646,8 +647,16 @@ class Dataset_Pretrain_PEMS_AlignTask(Dataset):
         self.labels = labels
 
     def __getitem__(self, index):
-        data = self.data_x[index]
-        label = self.labels[index]
+        s_begin = index
+        s_end = s_begin + self.seq_len
+
+        data = self.data_x[s_begin:s_end]
+        label = self.labels[s_begin:s_end]
+
+        if np.all(label == 1):
+            label = 1
+        else:
+            label = 0
 
         return data, label
 
@@ -661,4 +670,8 @@ class Dataset_Pretrain_PEMS_AlignTask(Dataset):
 if __name__ == '__main__':
     root_path = '../datasets/'
     data_path = 'PEMS08/data.npz'
-    data = Dataset_Pretrain_PEMS_AlignTask(root_path, data_path)
+    dataset = Dataset_Pretrain_PEMS_AlignTask(root_path, data_path, 'train')
+    data, label = dataset.__getitem__(0)
+    print(label)
+    data, label = dataset.__getitem__(20000)
+    print(label)

@@ -68,8 +68,8 @@ class Model(nn.Module):
 
         # ===================================pretrain special=============================================
         self.mask_ratio = configs.mask_ratio
-        self.mask_token_T = nn.Parameter(torch.zeros(1, 1, self.time_dim - self.tod_embedding_dim))
-        self.mask_token_S = nn.Parameter(torch.zeros(1, 1, 1, self.target_dim - self.spatial_embedding_dim))
+        self.mask_token_T = nn.init.xavier_uniform_(nn.Parameter(torch.zeros(1, 1, self.time_dim - self.tod_embedding_dim)))
+        self.mask_token_S = nn.init.xavier_uniform_(nn.Parameter(torch.zeros(1, 1, 1, self.target_dim - self.spatial_embedding_dim)))
         self.decoder = MergeAttentionLayer(self.time_dim, self.target_dim, self.feed_forward_dim, self.num_heads, self.dropout)
         self.pretrain_output_T = nn.Linear(self.time_dim, self.patch_size * (self.input_dim - 1))
         self.pretrain_output_S = nn.Linear(self.target_dim, self.patch_size)
