@@ -1,5 +1,7 @@
 import datetime
 import os
+import random
+from itertools import combinations
 
 import numpy as np
 import pandas as pd
@@ -570,20 +572,93 @@ class Dataset_NYCTaxi(Dataset):
         return self.scaler.inverse_transform(data)
 
 
+class Dataset_Pretrain_PEMS_AlignTask(Dataset):
+    def __init__(self, root_path, data_path, flag='train', size=None, scale=True, time_to_feature=0, type='flow'):
+        if size == None:
+            self.seq_len = 12
+            self.label_len = 12*24*7
+            self.pred_len = 12
+        else:
+            self.seq_len = size[0]
+            self.label_len = size[1]
+            self.pred_len = size[2]
+        # init
+        assert flag in ['train', 'test', 'val']
+        type_map = {'train': 0, 'val': 1, 'test': 2}
+        self.type = type
+        self.set_type = type_map[flag]
+
+        self.scale = scale
+        self.time_to_feature = time_to_feature
+
+        self.root_path = root_path
+        self.data_path = data_path
+        self.__read_data__()
+
+    def __read_data__(self):
+        data_file_path = os.path.join(self.root_path, self.data_path)
+        data = np.load(data_file_path)['data'].astype(np.float32)
+
+        time = data[..., 1:]
+        data = data[..., 0]
+
+        num_train = round(len(data) * 0.6)
+        num_test = round(len(data) * 0.2)
+        num_vali = len(data) - num_train - num_test
+        border1s = [0, num_train - self.seq_len, len(data) - num_test - self.seq_len]
+        border2s = [num_train, num_train + num_vali, len(data)]
+        border1 = border1s[self.set_type]
+        border2 = border2s[self.set_type]
+
+        if self.scale:
+            train_data = data[border1s[0]:border2s[0]]
+            self.scaler = StandardScaler(mean=train_data.mean(), std=train_data.std())
+            print('mean:', train_data.mean())
+            print('std:', train_data.std())
+            # 对数据进行标准化
+            data = self.scaler.transform(data)
+        else:
+            data = data
+
+        num_samples, num_nodes = data.shape
+        if self.time_to_feature == 0:
+            processed_data = np.concatenate([np.expand_dims(data, axis=-1), time], axis=-1)
+        else:
+            processed_data = data
+
+        index_data = np.random.randint(0, num_samples, size=num_samples+num_samples//2)
+        index_time = np.random.randint(0, num_samples, size=num_samples+num_samples//2)
+        mask = index_data != index_time
+        index_data = index_data[mask]
+        index_time = index_time[mask]
+
+        sample_datas = data[index_data]
+        sample_times = time[index_time]
+
+        sample_datas = np.expand_dims(sample_datas, axis=-1)
+        samples = np.concatenate([sample_datas, sample_times], axis=-1)
+        labels = np.zeros(len(samples) + len(processed_data))
+
+        samples = np.concatenate([samples, processed_data])
+        labels[-len(processed_data):] = 1
+
+        self.data_x = samples
+        self.labels = labels
+
+    def __getitem__(self, index):
+        data = self.data_x[index]
+        label = self.labels[index]
+
+        return data, label
+
+    def __len__(self):
+        return len(self.data_x)
+
+    def inverse_transform(self, data):
+        return self.scaler.inverse_transform(data)
+
+
 if __name__ == '__main__':
     root_path = '../datasets/'
-    data_path = 'NYCTaxi/NYCTaxi'
-    # data_path = 'PEMS-BAY/PEMS-BAY.h5'
-    data = Dataset_NYCTaxi(root_path=root_path, data_path=data_path, time_to_feature=0)
-    # data = Dataset_h5(root_path=root_path, data_path=data_path, time_to_feature=True)
-    seq_x, seq_y, seq_x_mark, seq_y_mark = data.__getitem__(0)
-    print(seq_x.shape)
-    print(seq_y.shape)
-    print(seq_x)
-    print(seq_y)
-    print(seq_x_mark)
-    print(seq_y_mark)
-    print(type(seq_x[0, 0, 0]))
-    print(type(seq_x[0, 0, :]))
-    print(type(seq_x[0, :, :]))
-    print(type(seq_x))
+    data_path = 'PEMS08/data.npz'
+    data = Dataset_Pretrain_PEMS_AlignTask(root_path, data_path)

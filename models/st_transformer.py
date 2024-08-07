@@ -434,9 +434,10 @@ class Model(nn.Module):
         self.dow_embedding_dim = configs.dow_embedding_dim
         self.spatial_embedding_dim = configs.spatial_embedding_dim
         self.feed_forward_dim = configs.feed_forward_dim
-        self.pos_dim = configs.pos_dim
-        self.time_dim = (configs.tod_embedding_dim + configs.dow_embedding_dim + configs.pos_dim)
-        self.target_dim = (configs.input_embedding_dim + configs.spatial_embedding_dim + configs.pos_dim)
+        self.pos_tdim = configs.pos_tdim
+        self.pos_sdim = configs.pos_sdim
+        self.time_dim = (configs.tod_embedding_dim + configs.dow_embedding_dim + configs.pos_tdim)
+        self.target_dim = (configs.input_embedding_dim + configs.spatial_embedding_dim + configs.pos_sdim)
         self.num_heads = configs.n_heads
         self.num_layers = configs.num_layers
         self.use_mixed_proj = configs.use_mixed_proj
@@ -461,16 +462,16 @@ class Model(nn.Module):
             )
             nn.init.xavier_uniform_(self.node_emb)
         self.pos_time = nn.init.xavier_uniform_(
-            nn.Parameter(torch.empty(self.num_patches, self.pos_dim))
+            nn.Parameter(torch.empty(self.num_patches, self.pos_tdim))
         )
         self.pos_series = nn.init.xavier_uniform_(
-            nn.Parameter(torch.empty(self.num_patches, self.pos_dim))
+            nn.Parameter(torch.empty(self.num_patches, self.pos_sdim))
         )
 
         self.output_proj = nn.Linear(
-            self.target_dim * self.num_patches, self.out_steps * self.output_dim
+            self.target_dim, self.out_steps * self.output_dim
         )
-        # self.output_proj1 = nn.Linear(self.target_dim * self.num_patches, self.feed_forward_dim)
+        self.output_proj1 = nn.Linear(self.target_dim * self.num_patches, self.target_dim)
 
         # ===================================encoding special=============================================
         self.merge_attn_layers = nn.ModuleList(
@@ -526,8 +527,8 @@ class Model(nn.Module):
         target_features = target_features.transpose(1, 2).reshape(batch_size, num_nodes, -1)
 
         out = target_features
-        # out = self.output_proj1(out)
-        # out = F.relu(out)
+        out = self.output_proj1(out)
+        out = F.relu(out)
         out = self.output_proj(out).view(batch_size, self.num_nodes, self.out_steps, self.output_dim)
         out = out.transpose(1, 2)  # (batch_size, out_steps, num_nodes, output_dim)
 
