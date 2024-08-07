@@ -671,7 +671,5 @@ if __name__ == '__main__':
     root_path = '../datasets/'
     data_path = 'PEMS08/data.npz'
     dataset = Dataset_Pretrain_PEMS_AlignTask(root_path, data_path, 'train')
-    data, label = dataset.__getitem__(0)
-    print(label)
-    data, label = dataset.__getitem__(20000)
+    data, label = dataset.__getitem__(26773)
     print(label)
