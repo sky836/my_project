@@ -52,7 +52,7 @@ if __name__ == '__main__':
     parser.add_argument('--output_dim', type=int, default=1, help='')
     parser.add_argument('--seq_len', type=int, default=12*24, help='input sequence length')
     parser.add_argument('--label_len', type=int, default=12*24*7, help='start token length')
-    parser.add_argument('--patch_size', type=int, default=1, help='The size of one patch')
+    parser.add_argument('--patch_size', type=int, default=3, help='The size of one patch')
     parser.add_argument('--pred_len', type=int, default=12*24, help='prediction sequence length')
     parser.add_argument('--clip', type=int, default=None, help='clip grad')
 
