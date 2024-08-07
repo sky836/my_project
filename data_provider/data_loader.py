@@ -658,6 +658,9 @@ class Dataset_Pretrain_PEMS_AlignTask(Dataset):
         else:
             label = np.array(0)
 
+        print('label shape:', label.shape)
+        print('data shape:', data.shape)
+
         return data, label
 
     def __len__(self):
