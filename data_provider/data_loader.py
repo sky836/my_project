@@ -651,9 +651,9 @@ class Dataset_Pretrain_PEMS_AlignTask(Dataset):
         s_end = s_begin + self.seq_len
 
         data = self.data_x[s_begin:s_end]
-        label = self.labels[s_begin:s_end]
+        labels = self.labels[s_begin:s_end]
 
-        if np.all(label == 1):
+        if np.all(labels == 1):
             label = 1
         else:
             label = 0
@@ -661,7 +661,7 @@ class Dataset_Pretrain_PEMS_AlignTask(Dataset):
         return data, label
 
     def __len__(self):
-        return len(self.data_x)
+        return len(self.data_x - self.seq_len + 1)
 
     def inverse_transform(self, data):
         return self.scaler.inverse_transform(data)
