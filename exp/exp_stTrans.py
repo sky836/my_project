@@ -161,7 +161,7 @@ class Exp_stTrans(Exp_Basic):
         #     gamma=0.1
         # )
         # 设置warm up的轮次为100次
-        scheduler = WarmupMultiStepLR(model_optim, self.args.warmup_epochs, milestones=[30, 40, 85, 95], gamma=0.1)
+        scheduler = WarmupMultiStepLR(model_optim, self.args.warmup_epochs, milestones=[20, 30, 85, 95], gamma=0.1)
         # scheduler = WarmupLastMultiStepLR(model_optim, warmup_epochs=[65, 75, 85, 95], milestones=[20, 30], gamma=0.1)
 
         criterion = self._select_criterion()

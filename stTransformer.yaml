@@ -220,8 +220,8 @@ PEMS03:
     input_embedding_dim: 24
     tod_embedding_dim: 24
     dow_embedding_dim: 24
-    spatial_embedding_dim: 0
-    adaptive_embedding_dim: 80
+    spatial_embedding_dim: 48
+    pos_dim: 32
     feed_forward_dim: 256
     num_heads: 4
     num_layers: 3
@@ -294,12 +294,50 @@ TDrive:
     input_dim: 4
     output_dim: 2
     pos_dim: 32
-    input_embedding_dim: 24
+    input_embedding_dim: 48
     tod_embedding_dim: 24
     dow_embedding_dim: 24
     spatial_embedding_dim: 148
-    feed_forward_dim: 256
+    feed_forward_dim: 512
     num_heads: 4
     num_layers: 5
+    dropout: 0.1
+
+CHIBike:
+  num_nodes: 270
+  in_steps: 6
+  out_steps: 1
+
+  train_size: 0.7
+  val_size: 0.1
+
+  time_of_day: True
+  day_of_week: True
+
+  lr: 0.001
+  weight_decay: 0.0003
+  milestones: [20, 30, 80]
+  lr_decay_rate: 0.1
+  batch_size: 16
+  max_epochs: 300
+  early_stop: 20
+  use_cl: False
+  cl_step_size: 2500
+
+  model_args:
+    num_nodes: 270
+    in_steps: 6
+    out_steps: 1
+    steps_per_day: 48
+    input_dim: 4
+    output_dim: 2
+    pos_dim: 32
+    input_embedding_dim: 24
+    tod_embedding_dim: 24
+    dow_embedding_dim: 24
+    spatial_embedding_dim: 48
+    feed_forward_dim: 256
+    num_heads: 4
+    num_layers: 4
     dropout: 0.1
 
