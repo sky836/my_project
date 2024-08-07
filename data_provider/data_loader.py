@@ -654,9 +654,9 @@ class Dataset_Pretrain_PEMS_AlignTask(Dataset):
         labels = self.labels[s_begin:s_end]
 
         if np.all(labels == 1):
-            label = 1
+            label = np.array(1)
         else:
-            label = 0
+            label = np.array(0)
 
         return data, label
 
