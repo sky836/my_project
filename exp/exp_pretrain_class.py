@@ -133,6 +133,7 @@ class Exp_Pretrain_Class(Exp_Basic):
             epoch_time = time.time()
 
             for i, (data, label) in enumerate(train_loader):
+                print(f"Batch {i} - Data shape: {data.shape}, Label shape: {label.shape}")
                 iter_count += 1
                 step += 1
                 model_optim.zero_grad()
