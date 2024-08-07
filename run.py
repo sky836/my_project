@@ -43,16 +43,17 @@ if __name__ == '__main__':
     # 1. data and adj
     parser.add_argument('--adj_path', type=str, default=r'datasets/PEMS08/adj.npy', help='path of the adjmx')
     parser.add_argument('--root_path', type=str, default='/kaggle/input/traffic-datasets/datasets/', help='root path of the data file')
-    parser.add_argument('--data_path', type=str, default='PEMS03/data.npz', help='data file')
-    parser.add_argument('--data', type=str, required=False, default='PEMS03', help='dataset type, Pretrain_Forecast')
-    parser.add_argument('--num_nodes', type=int, required=False, default=358, help='the nodes of dataset')
+    parser.add_argument('--data_path', type=str, default='PEMS08/data.npz', help='data file')
+    parser.add_argument('--data', type=str, required=False, default='PEMS08', help='dataset type, Pretrain_Forecast')
+    parser.add_argument('--num_nodes', type=int, required=False, default=170, help='the nodes of dataset')
     parser.add_argument('--steps_per_day', type=int, default=288, help='')
     parser.add_argument('--mask_threshold', type=int, default=0, help='')
     parser.add_argument('--input_dim', type=int, default=3, help='')
     parser.add_argument('--output_dim', type=int, default=1, help='')
-    parser.add_argument('--seq_len', type=int, default=12, help='input sequence length')
+    parser.add_argument('--seq_len', type=int, default=12*24, help='input sequence length')
     parser.add_argument('--label_len', type=int, default=12*24*7, help='start token length')
-    parser.add_argument('--pred_len', type=int, default=12, help='prediction sequence length')
+    parser.add_argument('--patch_size', type=int, default=1, help='The size of one patch')
+    parser.add_argument('--pred_len', type=int, default=12*24, help='prediction sequence length')
     parser.add_argument('--clip', type=int, default=None, help='clip grad')
 
 
@@ -82,7 +83,6 @@ if __name__ == '__main__':
     parser.add_argument('--dropout', type=float, default=0.1, help='dropout')
     parser.add_argument('--embed', type=str, default='fixed',
                         help='time features encoding, options:[timeF, fixed, learned]')
-    parser.add_argument('--patch_size', type=int, default=1, help='The size of one patch')
     parser.add_argument('--label_patch_size', type=int, default=1, help='The size of one  decoder input patch')
     parser.add_argument('--pretrain_layers', type=int, default=1, help='num of pretrain decoder layers')
     parser.add_argument('--mask_ratio', type=float, default=0.5, help='mask ratio of pretrain')
