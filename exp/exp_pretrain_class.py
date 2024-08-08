@@ -108,6 +108,7 @@ class Exp_Pretrain_Class(Exp_Basic):
         train_steps = len(train_loader)
         model_optim = self._select_optimizer()
         criterion = nn.CrossEntropyLoss(reduction='mean')
+        early_stopping = EarlyStopping(patience=self.args.patience, verbose=True)
         lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(model_optim,
                                                                   mode='min', factor=0.1, patience=5,
                                                                   verbose=False, threshold=0.001, threshold_mode='rel',
@@ -137,7 +138,7 @@ class Exp_Pretrain_Class(Exp_Basic):
                 step += 1
                 model_optim.zero_grad()
                 data = data.float().to(self.device)
-                label = label.to(self.device)
+                label = label.long().to(self.device)
 
                 outputs = self.model(data)
                 loss = criterion(outputs, label)
@@ -169,15 +170,10 @@ class Exp_Pretrain_Class(Exp_Basic):
                 writer.add_scalar(scalar_value=train_loss, global_step=epoch+1, tag='Loss/train')
                 writer.add_scalar(scalar_value=valid_loss, global_step=epoch+1, tag='Loss/valid')
 
-                if valid_loss < best_loss:
-                    best_loss = valid_loss
-                    print_log(log, f'Saving state ...')
-                    torch.save({
-                        'epoch': epoch,
-                        'model_state_dict': self.model.state_dict(),
-                        'optimizer_state_dict': model_optim.state_dict(),
-                        'scheduler_state_dict': lr_scheduler.state_dict(),  # 如果使用了学习率调度器
-                        'loss': train_loss,
-                    }, path + '/' + 'checkpoint.pth')
+                early_stopping(valid_loss, self.model, path, epoch, self.device)
+                if early_stopping.early_stop:
+                    print_log(log, "Early stopping")
+                    print_log(log, "best epoch: {0}".format(early_stopping.best_epoch))
+                    break
 
         return self.model
