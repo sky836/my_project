@@ -30,7 +30,7 @@ def data_provider(args, flag):
         batch_size = args.batch_size  # bsz=1 for evaluation
         freq = args.freq
     else:
-        shuffle_flag = False
+        shuffle_flag = True
         drop_last = True
         batch_size = args.batch_size  # bsz for train and valid
         freq = args.freq

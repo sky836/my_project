@@ -10,6 +10,7 @@ import torch
 # from sklearn.preprocessing import StandardScaler
 from utils.tools import StandardScaler
 from torch.utils.data import Dataset
+from torch.utils.data import DataLoader
 
 from utils.timefeatures import time_features
 
@@ -626,8 +627,8 @@ class Dataset_Pretrain_PEMS_AlignTask(Dataset):
         processed_data = np.concatenate([processed_data, time], axis=-1)  # 匹配的数据 [l, n, c]
 
         l = data.shape[0]
-        index_data = np.random.randint(0, l, size=l+l//2)
-        index_time = np.random.randint(0, l, size=l+l//2)
+        index_data = np.random.randint(0, l, size=l)
+        index_time = np.random.randint(0, l, size=l)
         mask = index_data != index_time
         index_data = index_data[mask]
         index_time = index_time[mask]
@@ -661,7 +662,7 @@ class Dataset_Pretrain_PEMS_AlignTask(Dataset):
         return data, label
 
     def __len__(self):
-        return len(self.data_x - self.seq_len + 1)
+        return len(self.data_x) - self.seq_len + 1
 
     def inverse_transform(self, data):
         return self.scaler.inverse_transform(data)
@@ -673,3 +674,18 @@ if __name__ == '__main__':
     dataset = Dataset_Pretrain_PEMS_AlignTask(root_path, data_path, 'train')
     data, label = dataset.__getitem__(26773)
     print(label)
+    data_loader = DataLoader(
+        dataset,
+        batch_size=1,
+        shuffle=False,
+        num_workers=1,
+        drop_last=True
+    )
+    # 将 DataLoader 转换为列表
+    data_list = list(data_loader)
+
+    # 从最后一个批次开始迭代
+    # for i in range(len(data_list) - 1, -1, -1):
+    for i in range(len(data_list)-1):
+        data, label = data_list[i]
+        print(f"Batch {i} - Data shape: {data.shape}, Label shape: {label.shape}")
