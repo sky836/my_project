@@ -61,7 +61,7 @@ class Exp_Pretrain_Class(Exp_Basic):
         with torch.no_grad():
             for i, (data, label) in enumerate(vali_loader):
                 data = data.float().to(self.device)
-                label = label.float().to(self.device)
+                label = label.to(self.device)
 
                 outputs = self.model(data)
                 loss = criterion(outputs, label)
