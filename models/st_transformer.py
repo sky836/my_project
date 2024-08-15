@@ -475,7 +475,7 @@ class Model(nn.Module):
         )
 
         self.output_proj = nn.Linear(
-            self.target_dim, self.out_steps * self.output_dim
+            self.self.target_dim * self.num_patches, self.out_steps * self.output_dim
         )
         # self.output_proj1 = nn.Linear(self.target_dim * self.num_patches, self.target_dim)
 
