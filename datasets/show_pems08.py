@@ -4,7 +4,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 import torch
 
-data_name = 'PEMS03'
+data_name = 'PEMS08'
 data = np.load(os.path.join(fr'{data_name}/', "data.npz"))["data"].astype(np.float32)
 x = data[..., 0]
 
@@ -56,13 +56,13 @@ def showTimeseries_fft(timeSeries, time):
     plt.show()
 
 
-interval = 12
-sample = 1
+interval = 12*24*2
+sample = 24
 for i in range(0, x.shape[0], interval):
     for j in range(0, x.shape[1], 3):
         time_series = {}
         for k in range(3):
             time_series[j+k] = x[i:i+interval, j+k]
         showTimeseries(time_series, range(interval))
-        showTimeseries_fft(time_series, range(interval))
+        # showTimeseries_fft(time_series, range(interval))
 
