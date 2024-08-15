@@ -453,15 +453,15 @@ class Model(nn.Module):
                                     in_chans=self.input_dim, embed_dim=self.input_embedding_dim, norm_layer=nn.LayerNorm)
         self.num_patches = self.patch_emb.num_patches
         if self.tod_embedding_dim > 0:
-            # self.tod_embedding = nn.Embedding(self.steps_per_day, self.tod_embedding_dim)
-            self.tod_embedding = nn.init.xavier_uniform_(
-                nn.Parameter(torch.empty(self.steps_per_day, self.tod_embedding_dim))
-            )
+            self.tod_embedding = nn.Embedding(self.steps_per_day, self.tod_embedding_dim)
+            # self.tod_embedding = nn.init.xavier_uniform_(
+            #     nn.Parameter(torch.empty(self.steps_per_day, self.tod_embedding_dim))
+            # )
         if self.dow_embedding_dim > 0:
-            # self.dow_embedding = nn.Embedding(7, self.dow_embedding_dim)
-            self.dow_embedding = nn.init.xavier_uniform_(
-                nn.Parameter(torch.empty(7, self.dow_embedding_dim))
-            )
+            self.dow_embedding = nn.Embedding(7, self.dow_embedding_dim)
+            # self.dow_embedding = nn.init.xavier_uniform_(
+            #     nn.Parameter(torch.empty(7, self.dow_embedding_dim))
+            # )
         if self.spatial_embedding_dim > 0:
             self.node_emb = nn.Parameter(
                 torch.empty(self.num_nodes, self.spatial_embedding_dim)
@@ -506,10 +506,10 @@ class Model(nn.Module):
         target_features = [x]
         time_features = []
         if self.tod_embedding_dim > 0:
-            tod_emb = self.tod_embedding[(tod * self.steps_per_day).long()] # (batch_size, in_steps, num_nodes, tod_embedding_dim)
+            tod_emb = self.tod_embedding((tod * self.steps_per_day).long()) # (batch_size, in_steps, num_nodes, tod_embedding_dim)
             time_features.append(tod_emb[:, ::patch_size])
         if self.dow_embedding_dim > 0:
-            dow_emb = self.dow_embedding[dow.long()]  # (batch_size, in_steps, num_nodes, dow_embedding_dim)
+            dow_emb = self.dow_embedding(dow.long())  # (batch_size, in_steps, num_nodes, dow_embedding_dim)
             time_features.append(dow_emb[:, ::patch_size])
         time_features.append(self.pos_time.expand(size=(batch_size, *self.pos_time.shape)))
         node_emb = self.node_emb.expand(size=(batch_size, self.num_patches, *self.node_emb.shape))
