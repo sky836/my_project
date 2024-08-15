@@ -477,7 +477,7 @@ class Model(nn.Module):
         self.output_proj = nn.Linear(
             self.target_dim, self.out_steps * self.output_dim
         )
-        self.output_proj1 = nn.Linear(self.target_dim * self.num_patches, self.target_dim)
+        # self.output_proj1 = nn.Linear(self.target_dim * self.num_patches, self.target_dim)
 
         # ===================================encoding special=============================================
         self.merge_attn_layers = nn.ModuleList(
@@ -533,8 +533,8 @@ class Model(nn.Module):
         target_features = target_features.transpose(1, 2).reshape(batch_size, num_nodes, -1)
 
         out = target_features
-        out = self.output_proj1(out)
-        out = F.relu(out)
+        # out = self.output_proj1(out)
+        # out = F.relu(out)
         out = self.output_proj(out).view(batch_size, self.num_nodes, self.out_steps, self.output_dim)
         out = out.transpose(1, 2)  # (batch_size, out_steps, num_nodes, output_dim)
 
