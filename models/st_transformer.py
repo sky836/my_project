@@ -475,7 +475,7 @@ class Model(nn.Module):
         )
 
         self.output_proj = nn.Linear(
-            self.self.target_dim * self.num_patches, self.out_steps * self.output_dim
+            self.target_dim * self.num_patches, self.out_steps * self.output_dim
         )
         # self.output_proj1 = nn.Linear(self.target_dim * self.num_patches, self.target_dim)
 
@@ -506,7 +506,7 @@ class Model(nn.Module):
         target_features = [x]
         time_features = []
         if self.tod_embedding_dim > 0:
-            tod_emb = self.tod_embedding[(tod * self.steps_per_day).long() ] # (batch_size, in_steps, num_nodes, tod_embedding_dim)
+            tod_emb = self.tod_embedding[(tod * self.steps_per_day).long()] # (batch_size, in_steps, num_nodes, tod_embedding_dim)
             time_features.append(tod_emb[:, ::patch_size])
         if self.dow_embedding_dim > 0:
             dow_emb = self.dow_embedding[dow.long()]  # (batch_size, in_steps, num_nodes, dow_embedding_dim)
