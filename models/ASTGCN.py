@@ -282,8 +282,8 @@ class Model(AbstractTrafficStateModel):
         self.nb_time_filter = 64
 
         adj_mx = np.zeros((self.num_nodes, self.num_nodes), dtype=np.float32)
-        self.len_row = int(math.sqrt(self.num_nodes))
-        self.len_column = self.len_row
+        self.len_row = 32
+        self.len_column = 32
         dirs = [[0, 1], [1, 0], [-1, 0], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]
         for i in range(self.len_row):
             for j in range(self.len_column):
