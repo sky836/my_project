@@ -3,7 +3,7 @@ import torch.nn as nn
 
 class AbstractModel(nn.Module):
 
-    def __init__(self, config, data_feature):
+    def __init__(self, config):
         nn.Module.__init__(self)
 
     def predict(self, batch):

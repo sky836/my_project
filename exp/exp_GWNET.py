@@ -42,6 +42,8 @@ class Exp_GWNET(Exp_Basic):
             model = self.model_dict[self.args.model].Model(num_nodes=self.args.num_nodes, supports=supports).float()
         elif self.args.model == 'VanillaTransformer':
             model = self.model_dict[self.args.model].Model(self.args, supports=supports, device=self.device).float()
+        elif self.args.model == 'ASTGCN':
+            model = self.model_dict[self.args.model].Model(self.args, device=self.device).float()
         else:
             model = self.model_dict[self.args.model].Model(self.args).float()
 

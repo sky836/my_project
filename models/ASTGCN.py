@@ -1,10 +1,11 @@
+import math
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 from logging import getLogger
 from models.abstract_traffic_state_model import AbstractTrafficStateModel
-# from libcity.model import loss
 from scipy.sparse.linalg import eigs
 
 
@@ -66,22 +67,21 @@ class SpatialAttentionLayer(nn.Module):
     def forward(self, x):
         """
         Args:
-            x(torch.tensor): (B, N, F_in, T)
+            x(torch.tensor): (batch_size, N, F_in, T)
 
         Returns:
             torch.tensor: (B,N,N)
         """
-        # x * W1 --> (B,N,F,T)(T)->(B,N,F)
-        # x * W1 * W2 --> (B,N,F)(F,T)->(B,N,T)
-        lhs = torch.matmul(torch.matmul(x, self.W1), self.W2)
-        # (W3 * x) ^ T --> (F)(B,N,F,T)->(B,N,T)-->(B,T,N)
-        rhs = torch.matmul(self.W3, x).transpose(-1, -2)
-        # x = lhs * rhs --> (B,N,T)(B,T,N) -> (B, N, N)
-        product = torch.matmul(lhs, rhs)
-        # S = Vs * sig(x + bias) --> (N,N)(B,N,N)->(B,N,N)
-        s = torch.matmul(self.Vs, torch.sigmoid(product + self.bs))
-        # softmax (B,N,N)
+        lhs = torch.matmul(torch.matmul(x, self.W1), self.W2)  # (b,N,F,T)(T)->(b,N,F)(F,T)->(b,N,T)
+
+        rhs = torch.matmul(self.W3, x).transpose(-1, -2)  # (F)(b,N,F,T)->(b,N,T)->(b,T,N)
+
+        product = torch.matmul(lhs, rhs)  # (b,N,T)(b,T,N) -> (B, N, N)
+
+        s = torch.matmul(self.Vs, torch.sigmoid(product + self.bs))  # (N,N)(B, N, N)->(B,N,N)
+
         s_normalized = F.softmax(s, dim=1)
+
         return s_normalized
 
 
@@ -93,8 +93,8 @@ class ChebConvWithSAt(nn.Module):
     def __init__(self, k, cheb_polynomials, in_channels, out_channels):
         """
         Args:
-            k(int): K-order
-            cheb_polynomials: cheb_polynomials
+            k(int):
+            cheb_polynomials:
             in_channels(int): num of channels in the input sequence
             out_channels(int): num of channels in the output sequence
         """
@@ -132,11 +132,12 @@ class ChebConvWithSAt(nn.Module):
 
                 t_k = self.cheb_polynomials[k]  # (N,N)
 
-                t_k_with_at = t_k.mul(spatial_attention)   # (N,N)*(B,N,N) = (B,N,N) .mul->element-wise的乘法
+                t_k_with_at = t_k.mul(spatial_attention)   # (N,N)*(N,N) = (N,N) 多行和为1, 按着列进行归一化
 
                 theta_k = self.Theta[k]  # (in_channel, out_channel)
 
-                rhs = t_k_with_at.permute(0, 2, 1).matmul(graph_signal)  # (B, N, N)(B, N, F_in) = (B, N, F_in)
+                rhs = t_k_with_at.permute(0, 2, 1).matmul(graph_signal)
+                # (N, N)(b, N, F_in) = (b, N, F_in) 因为是左乘，所以多行和为1变为多列和为1，即一行之和为1，进行左乘
 
                 output = output + rhs.matmul(theta_k)  # (b, N, F_in)(F_in, F_out) = (b, N, F_out)
 
@@ -162,6 +163,7 @@ class TemporalAttentionLayer(nn.Module):
         Returns:
             torch.tensor: (B, T, T)
         """
+        _, num_of_vertices, num_of_features, num_of_timesteps = x.shape
 
         lhs = torch.matmul(torch.matmul(x.permute(0, 3, 2, 1), self.U1), self.U2)
         # x:(B, N, F_in, T) -> (B, T, F_in, N)
@@ -186,15 +188,8 @@ class ASTGCNBlock(nn.Module):
         self.TAt = TemporalAttentionLayer(device, in_channels, num_of_vertices, num_of_timesteps)
         self.SAt = SpatialAttentionLayer(device, in_channels, num_of_vertices, num_of_timesteps)
         self.cheb_conv_SAt = ChebConvWithSAt(k, cheb_polynomials, in_channels, nb_chev_filter)
-        # 时间卷积: 输入时间长度 = num_of_timesteps = time_strides * output_window
-        # 输入必须是输出output_window的固定倍数！
-        # ker=3, pad=2, stride=time_strides
-        # 输出时间长度 = (time_strides * output_window + 2 * pad - ker) / time_strides + 1 = output_window
         self.time_conv = nn.Conv2d(nb_chev_filter, nb_time_filter, kernel_size=(1, 3),
                                    stride=(1, time_strides), padding=(0, 1))
-        # 时间维度上卷积: 输入时间长度 = num_of_timesteps = time_strides * output_window
-        # ker=1, stride=time_strides
-        # 输出时间长度 = (time_strides * output_window - ker) / time_strides + 1 = output_window
         self.residual_conv = nn.Conv2d(in_channels, nb_time_filter, kernel_size=(1, 1), stride=(1, time_strides))
         self.ln = nn.LayerNorm(nb_time_filter)  # 需要将channel放到最后一个维度上
 
@@ -213,12 +208,12 @@ class ASTGCNBlock(nn.Module):
 
         x_tat = torch.matmul(x.reshape(batch_size, -1, num_of_timesteps), temporal_at)\
             .reshape(batch_size, num_of_vertices, num_of_features, num_of_timesteps)
-        # 结合时间注意力：(B, N*F_in, T) * (B, T, T) -> (B, N*F_in, T) -> (B, N, F_in, T)
+        # (B, N*F_in, T) * (B, T, T) -> (B, N*F_in, T) -> (B, N, F_in, T)
 
         # SAt
         spatial_at = self.SAt(x_tat)  # (B, N, N)
 
-        # 结合空间注意力的图卷积 cheb gcn
+        # cheb gcn
         spatial_gcn = self.cheb_conv_SAt(x, spatial_at)  # (B, N, F_out, T), F_out = nb_chev_filter
 
         # convolution along the time axis
@@ -235,27 +230,14 @@ class ASTGCNBlock(nn.Module):
         return x_residual
 
 
-class FusionLayer(nn.Module):
-    # Matrix-based fusion
-    def __init__(self, n, h, w, device):
-        super(FusionLayer, self).__init__()
-        # define the trainable parameter
-        self.weights = nn.Parameter(torch.FloatTensor(1, n, h, w).to(device))
-
-    def forward(self, x):
-        # assuming x is of size B-n-h-w
-        x = x * self.weights  # element-wise multiplication
-        return x
-
-
 class ASTGCNSubmodule(nn.Module):
     def __init__(self, device, nb_block, in_channels, k, nb_chev_filter, nb_time_filter,
-                 time_strides, cheb_polynomials, output_window, output_dim, num_of_vertices):
+                 input_window, cheb_polynomials, output_window, output_dim, num_of_vertices):
         super(ASTGCNSubmodule, self).__init__()
 
         self.BlockList = nn.ModuleList([ASTGCNBlock(device, in_channels, k, nb_chev_filter,
-                                                    nb_time_filter, time_strides, cheb_polynomials,
-                                                    num_of_vertices, time_strides * output_window)])
+                                                    nb_time_filter, input_window // output_window,
+                                                    cheb_polynomials, num_of_vertices, input_window)])
 
         self.BlockList.extend([ASTGCNBlock(device, nb_time_filter, k, nb_chev_filter,
                                            nb_time_filter, 1, cheb_polynomials,
@@ -264,8 +246,6 @@ class ASTGCNSubmodule(nn.Module):
 
         self.final_conv = nn.Conv2d(output_window, output_window,
                                     kernel_size=(1, nb_time_filter - output_dim + 1))
-
-        self.fusionlayer = FusionLayer(output_window, num_of_vertices, output_dim, device)
 
     def forward(self, x):
         """
@@ -277,60 +257,56 @@ class ASTGCNSubmodule(nn.Module):
         """
         x = x.permute(0, 2, 3, 1)  # (B, N, F_in(feature_dim), T_in)
         for block in self.BlockList:
-            x = block(x)  # 每个时空块的输出维度是nb_time_filter
+            x = block(x)
         # (B, N, F_out(nb_time_filter), T_out(output_window))
-        # 将nb_time_filter变成output_dim
         output = self.final_conv(x.permute(0, 3, 1, 2))
-        # (B, N, F_out, T_out) --> (B, T_out, N, F_out) --> conv<1,F_out-out_dim+1> --> (B, T_out, N, out_dim)
-        output = self.fusionlayer(output)
+        # (B,N,F_out,T_out)->(B,T_out,N,F_out)-conv<1,F_out-out_dim+1>->(B,T_out,N,out_dim)
         return output
 
 
-class ASTGCN(AbstractTrafficStateModel):
-    def __init__(self, config, data_feature):
-        super().__init__(config, data_feature)
+# 适配最一般的TrafficStateGridDataset和TrafficStatePointDataset
+class Model(AbstractTrafficStateModel):
+    def __init__(self, config, device):
+        super().__init__(config)
 
-        self.num_nodes = self.data_feature.get('num_nodes', 1)
-        self.feature_dim = self.data_feature.get('feature_dim', 1)
-        self.len_period = self.data_feature.get('len_period', 0)
-        self.len_trend = self.data_feature.get('len_trend', 0)
-        self.len_closeness = self.data_feature.get('len_closeness', 0)
-        if self.len_period == 0 and self.len_trend == 0 and self.len_closeness == 0:
-            raise ValueError('Num of days/weeks/hours are all zero! Set at least one of them not zero!')
-        self.output_dim = self.data_feature.get('output_dim', 1)
+        self.num_nodes = config.num_nodes
+        self.feature_dim = config.input_dim
+        self.output_dim = config.output_dim
 
-        self.output_window = config.get('output_window', 1)
-        self.device = config.get('device', torch.device('cpu'))
-        self.nb_block = config.get('nb_block', 2)
-        self.K = config.get('K', 3)
-        self.nb_chev_filter = config.get('nb_chev_filter', 64)
-        self.nb_time_filter = config.get('nb_time_filter', 64)
+        self.input_window = config.seq_len
+        self.output_window = config.pred_len
+        self.device = device
+        self.nb_block = 2
+        self.K = 3
+        self.nb_chev_filter = 64
+        self.nb_time_filter = 64
 
-        adj_mx = self.data_feature.get('adj_mx')
+        adj_mx = np.zeros((self.num_nodes, self.num_nodes), dtype=np.float32)
+        self.len_row = int(math.sqrt(self.num_nodes))
+        self.len_column = self.len_row
+        dirs = [[0, 1], [1, 0], [-1, 0], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]
+        for i in range(self.len_row):
+            for j in range(self.len_column):
+                index = i * self.len_column + j  # grid_id
+                for d in dirs:
+                    nei_i = i + d[0]
+                    nei_j = j + d[1]
+                    if nei_i >= 0 and nei_i < self.len_row and nei_j >= 0 and nei_j < self.len_column:
+                        nei_index = nei_i * self.len_column + nei_j  # neighbor_grid_id
+                        adj_mx[index][nei_index] = 1
+                        adj_mx[nei_index][index] = 1
+
+        # adj_mx = self.data_feature.get('adj_mx')
         l_tilde = scaled_laplacian(adj_mx)
         self.cheb_polynomials = [torch.from_numpy(i).type(torch.FloatTensor).to(self.device)
                                  for i in cheb_polynomial(l_tilde, self.K)]
         self._logger = getLogger()
-        self._scaler = self.data_feature.get('scaler')
 
-        if self.len_closeness > 0:
-            self.hours_ASTGCN_submodule = \
-                ASTGCNSubmodule(self.device, self.nb_block, self.feature_dim,
-                                self.K, self.nb_chev_filter, self.nb_time_filter,
-                                self.len_closeness // self.output_window, self.cheb_polynomials,
-                                self.output_window, self.output_dim, self.num_nodes)
-        if self.len_period > 0:
-            self.days_ASTGCN_submodule = \
-                ASTGCNSubmodule(self.device, self.nb_block, self.feature_dim,
-                                self.K, self.nb_chev_filter, self.nb_time_filter,
-                                self.len_period // self.output_window, self.cheb_polynomials,
-                                self.output_window, self.output_dim, self.num_nodes)
-        if self.len_trend > 0:
-            self.weeks_ASTGCN_submodule = \
-                ASTGCNSubmodule(self.device, self.nb_block, self.feature_dim,
-                                self.K, self.nb_chev_filter, self.nb_time_filter,
-                                self.len_trend // self.output_window, self.cheb_polynomials,
-                                self.output_window, self.output_dim, self.num_nodes)
+        self.ASTGCN_submodule = \
+            ASTGCNSubmodule(self.device, self.nb_block, self.feature_dim,
+                            self.K, self.nb_chev_filter, self.nb_time_filter,
+                            self.input_window, self.cheb_polynomials,
+                            self.output_window, self.output_dim, self.num_nodes)
         self._init_parameters()
 
     def _init_parameters(self):
@@ -340,36 +316,7 @@ class ASTGCN(AbstractTrafficStateModel):
             else:
                 nn.init.uniform_(p)
 
-    def forward(self, batch):
-        x = batch['X']  # (B, Tw+Td+Th, N_nodes, F_in)
-        # 时间维度(第1维)上的顺序是CPT，即
-        # [0, len_closeness) -- input1
-        # [len_closeness, len_closeness+len_period) -- input2
-        # [len_closeness+len_period, len_closeness+len_period+len_trend) -- input3
-        output = 0
-        if self.len_closeness > 0:
-            begin_index = 0
-            end_index = begin_index + self.len_closeness
-            output_hours = self.hours_ASTGCN_submodule(x[:, begin_index:end_index, :, :])
-            output += output_hours
-        if self.len_period > 0:
-            begin_index = self.len_closeness
-            end_index = begin_index + self.len_period
-            output_days = self.days_ASTGCN_submodule(x[:, begin_index:end_index, :, :])
-            output += output_days
-        if self.len_trend > 0:
-            begin_index = self.len_closeness + self.len_period
-            end_index = begin_index + self.len_trend
-            output_weeks = self.weeks_ASTGCN_submodule(x[:, begin_index:end_index, :, :])
-            output += output_weeks
-        return output  # (B, Tp, N_nodes, F_out)
+    def forward(self, x):
+        output = self.ASTGCN_submodule(x)
+        return output  # (B, T', N_nodes, F_out)
 
-    def calculate_loss(self, batch):
-        y_true = batch['y']
-        y_predicted = self.predict(batch)
-        y_true = self._scaler.inverse_transform(y_true[..., :self.output_dim])
-        y_predicted = self._scaler.inverse_transform(y_predicted[..., :self.output_dim])
-        return loss.masked_mse_torch(y_predicted, y_true)
-
-    def predict(self, batch):
-        return self.forward(batch)
