@@ -11,7 +11,7 @@ from data_provider.data_factory import data_provider
 from exp.exp_basic import Exp_Basic
 from utils.metrics import metric, masked_mae
 from utils.tools import EarlyStopping, adjust_learning_rate, visual, StandardScaler, DataLoader, save_trainlog, \
-    print_log
+    print_log, WarmupMultiStepLR
 import torch
 import torch.nn as nn
 from torch import optim
@@ -43,38 +43,16 @@ class Exp_GWNET(Exp_Basic):
         elif self.args.model == 'VanillaTransformer':
             model = self.model_dict[self.args.model].Model(self.args, supports=supports, device=self.device).float()
         else:
-            print('ERROR!')
+            model = self.model_dict[self.args.model].Model(self.args).float()
 
-        if self.args.use_multi_gpu and self.args.use_gpu:
-            # nn.DataParallel: 这是 PyTorch 中的一个模块，用于在多个 GPU 上并行地运行模型。
-            # 它将输入模型封装在一个新的 DataParallel 模型中。
-            model = nn.DataParallel(model, device_ids=self.args.device_ids)
         return model
 
     def _get_data(self, flag):
         data_set, data_loader = data_provider(self.args, flag)
-        """
-        data = {}
-        dataset_dir = r'D:\博士阶段科研\文献阅读与汇报\时空数据挖掘\KDD\STEP-github\datasets\METR-LA'
-        for category in ['train', 'val', 'test']:
-            cat_data = np.load(os.path.join(dataset_dir, category + '.npz'))
-            data['x_' + category] = cat_data['x']
-            data['y_' + category] = cat_data['y']
-        scaler = StandardScaler(mean=data['x_train'][..., 0].mean(), std=data['x_train'][..., 0].std())
-        print('mean:', data['x_train'][..., 0].mean())
-        print('std:', data['x_train'][..., 0].std())
-        # Data format
-        for category in ['train', 'val', 'test']:
-            data['x_' + category][..., 0] = scaler.transform(data['x_' + category][..., 0])
-        data['train_loader'] = DataLoader(data['x_train'], data['y_train'], 32)
-        data['val_loader'] = DataLoader(data['x_val'], data['y_val'], 32)
-        data['test_loader'] = DataLoader(data['x_test'], data['y_test'], 1)
-        data['scaler'] = scaler
-        """
         return data_set, data_loader
 
     def _select_optimizer(self):
-        model_optim = optim.Adam(self.model.parameters(), lr=self.args.learning_rate, weight_decay=0.0001)
+        model_optim = optim.Adam(self.model.parameters(), lr=self.args.learning_rate, weight_decay=self.args.weight_decay)
         return model_optim
 
     def _select_criterion(self):
@@ -90,7 +68,7 @@ class Exp_GWNET(Exp_Basic):
         return d_mat.dot(adj).astype(np.float32).todense()
 
     def vali(self, vali_data, vali_loader, criterion):
-        total_loss, maes, mses, rmses, mapes, mspes = [], [], [], [], [], []
+        total_loss, maes, rmses, mapes = [], [], [], []
         preds = []
         trues = []
         self.model.eval()
@@ -98,36 +76,31 @@ class Exp_GWNET(Exp_Basic):
             for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(vali_loader):
                 batch_x = batch_x.float().to(self.device)
                 batch_y = batch_y.float().to(self.device)
-                # batch_x = torch.Tensor(batch_x).to(self.device)
-                # batch_y = torch.Tensor(batch_y).to(self.device)
 
                 outputs = self.model(batch_x[:, :, :, :])
 
-                y = batch_y[..., 0]
+                y = batch_y[..., :self.args.output_dim]
                 if vali_data.scale and self.args.inverse:
-                    batch_size, pred_len, n_nodes = outputs.shape
-                    outputs = vali_data.inverse_transform(outputs.reshape(-1, n_nodes)).reshape(batch_size,
-                                                                                                 pred_len, n_nodes)
-                # predict = vali_data.inverse_transform(outputs)
+                    batch_size, pred_len, n_nodes, n_feats = outputs.shape
+                    outputs = vali_data.inverse_transform(outputs.reshape(-1, n_nodes, n_feats)).reshape(batch_size,
+                                                                                                         pred_len,
+                                                                                                         n_nodes,
+                                                                                                         n_feats)
                 loss = criterion(outputs, y, 0.0)
                 total_loss.append(loss.item())
 
-                mae, mse, rmse, mape, mspe = metric(outputs, y)
+                mae, rmse, mape = metric(outputs, y, 0.0, self.args.mask_threshold)
                 maes.append(mae.item())
-                mses.append(mse.item())
                 rmses.append(rmse.item())
                 mapes.append(mape.item())
-                mspes.append(mspe.item())
                 preds.append(outputs)
                 trues.append(y)
 
-            total_loss, maes, mses, rmses, mapes, mspes = np.average(total_loss), np.average(maes), \
-                                                          np.average(mses), np.average(rmses), \
-                                                          np.average(mapes), np.average(mspes)
+            total_loss, maes, rmses, mapes = np.average(total_loss), np.average(maes), np.average(rmses), np.average(mapes)
         preds = torch.cat(preds, dim=0)
         trues = torch.cat(trues, dim=0)
         self.model.train()
-        return total_loss, maes, mses, rmses, mapes, mspes, preds, trues
+        return total_loss, maes, rmses, mapes, preds, trues
 
     def train(self, setting):
         train_data, train_loader = self._get_data(flag='train')
@@ -154,11 +127,12 @@ class Exp_GWNET(Exp_Basic):
         early_stopping = EarlyStopping(patience=self.args.patience, verbose=True)
 
         model_optim = self._select_optimizer()
-        scheduler = torch.optim.lr_scheduler.MultiStepLR(
-            model_optim,
-            milestones=[20, 30, 105],
-            gamma=0.1
-        )
+        # scheduler = torch.optim.lr_scheduler.MultiStepLR(
+        #     model_optim,
+        #     milestones=[20, 30, 105],
+        #     gamma=0.1
+        # )
+        scheduler = WarmupMultiStepLR(model_optim, self.args.warmup_epochs, milestones=[20, 30, 85, 95], gamma=0.1)
         criterion = self._select_criterion()
 
         n_parameters = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
@@ -168,7 +142,7 @@ class Exp_GWNET(Exp_Basic):
                 summary(
                     self.model,
                     [
-                        (self.args.batch_size, self.args.seq_len, self.args.num_nodes, 3)
+                        (self.args.batch_size, self.args.seq_len, self.args.num_nodes, self.args.input_dim)
                     ],
                     verbose=0,  # avoid print twice
                 )
@@ -196,15 +170,16 @@ class Exp_GWNET(Exp_Basic):
                 model_optim.zero_grad()
                 batch_x = batch_x.float().to(self.device)
                 batch_y = batch_y.float().to(self.device)
-                # batch_x = torch.Tensor(batch_x).to(self.device)
-                # batch_y = torch.Tensor(batch_y).to(self.device)
 
                 outputs = self.model(batch_x[:, :, :, :])
-                y = batch_y[..., 0]
+                y = batch_y[..., :self.args.output_dim]
+
+                batch_size, pred_len, n_nodes, n_feats = outputs.shape
                 if train_data.scale and self.args.inverse:
-                    batch_size, pred_len, n_nodes = outputs.shape
-                    outputs = train_data.inverse_transform(outputs.reshape(-1, n_nodes)).reshape(batch_size,
-                                                                                                 pred_len, n_nodes)
+                    outputs = train_data.inverse_transform(outputs.reshape(-1, n_nodes, n_feats)).reshape(batch_size,
+                                                                                                          pred_len,
+                                                                                                          n_nodes,
+                                                                                                          n_feats)
 
                 loss = criterion(outputs, y, 0.0)
                 train_loss.append(loss.item())
@@ -229,8 +204,7 @@ class Exp_GWNET(Exp_Basic):
                 print_log(log, "Epoch: {} cost time: {}".format(epoch + 1, time.time() - epoch_time))
                 print_log(log, "Epoch: {} current lr: {}".format(epoch + 1, current_lr))
             train_loss = np.average(train_loss)
-            vali_loss, vali_mae, vali_mse, vali_rmse, vali_mape, vali_mspe, _, _ = self.vali(vali_data, vali_loader,
-                                                                                             criterion)
+            vali_loss, vali_mae, vali_rmse, vali_mape, _, _ = self.vali(vali_data, vali_loader, criterion)
             scheduler.step()  # 学习率调整
             if self.device == 0:
                 print_log(
@@ -238,30 +212,26 @@ class Exp_GWNET(Exp_Basic):
                     "Epoch: {0}, Steps: {1} | Train Loss: {2:.7f} Vali Loss: {3:.7f}".
                     format(epoch + 1, train_steps, train_loss, vali_loss)
                 )
-            test_loss, test_mae, test_mse, test_rmse, test_mape, \
-            test_mspe, test_preds, test_trues = self.vali(test_data, test_loader, criterion)
+            test_loss, test_mae, test_rmse, test_mape, test_preds, test_trues = self.vali(test_data, test_loader, criterion)
             if self.device == 0:
                 print_log(
                     log,
                     "Epoch: {0}, Steps: {1} | Test Loss: {2:.7f} Test mae:{3:.7f} Test rmse:{4:.7f} Test mape: {5:.7f}".
                     format(epoch + 1, train_steps, test_loss, test_mae, test_rmse, test_mape)
                 )
-                _, pred_len, _ = test_preds.shape
+                _, pred_len, _, _ = test_preds.shape
                 for i in range(pred_len):
-                    mae, mse, rmse, mape, mspe = metric(test_preds[:, i, :], test_trues[:, i, :])
+                    mae, rmse, mape = metric(test_preds[:, i], test_trues[:, i], 0.0, self.args.mask_threshold)
                     print_log(
                         log,
                         f'Evaluate model on test data for horizon {i}, Test MAE: {mae}, Test RMSE: {rmse}, Test MAPE: {mape}'
                     )
-
-            if self.device == 0:
-                early_stopping(vali_loss, self.model, path, epoch, self.device)
+                early_stopping(vali_mae, self.model, path, epoch, self.device)
                 if early_stopping.early_stop:
                     print_log(log, "Early stopping")
                     print_log(log, "best epoch: {0}".format(early_stopping.best_epoch))
                     break
 
-            if self.device == 0:
                 writer.add_scalar(scalar_value=train_loss, global_step=epoch, tag='Loss/train')
                 writer.add_scalar(scalar_value=vali_loss, global_step=epoch, tag='Loss/valid')
 
@@ -285,7 +255,7 @@ class Exp_GWNET(Exp_Basic):
         x_marks = []
         y_marks = []
 
-        maes, mses, rmses, mapes, mspes = [], [], [], [], []
+        maes, rmses, mapes = [], [], []
         self.model.eval()
         with torch.no_grad():
             for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(test_loader):
@@ -293,28 +263,25 @@ class Exp_GWNET(Exp_Basic):
                 batch_y = batch_y.float().to(self.device)
 
                 outputs = self.model(batch_x)
-                y = batch_y[..., 0]
-
+                y = batch_y[..., :self.args.output_dim]
                 if test_data.scale and self.args.inverse:
-                    batch_size, pred_len, n_nodes = outputs.shape
-                    outputs = test_data.inverse_transform(outputs.reshape(-1, n_nodes)).reshape(batch_size,
-                                                                                                pred_len, n_nodes)
+                    batch_size, pred_len, n_nodes, n_feats = outputs.shape
+                    outputs = test_data.inverse_transform(outputs.reshape(-1, n_nodes, n_feats)).reshape(batch_size,
+                                                                                                         pred_len,
+                                                                                                         n_nodes,
+                                                                                                         n_feats)
 
-                mae, mse, rmse, mape, mspe = metric(outputs, y)
-                print("\tmae: {0:.7f} | mse: {1:.7f} | rmse: {2:.7f} | mape: {3:.7f} | mspe: {4:.7f}".format(mae, mse,
-                                                                                                             rmse, mape,
-                                                                                                             mspe))
+                mae, rmse, mape = metric(outputs, y, 0.0, self.args.mask_threshold)
+
                 maes.append(mae.item())
-                mses.append(mse.item())
                 rmses.append(rmse.item())
                 mapes.append(mape.item())
-                mspes.append(mspe.item())
 
-                inputs = batch_x[:, :, :, 0].detach().cpu().numpy()
+                inputs = batch_x[:, :, :, :self.args.output_dim].detach().cpu().numpy()
                 if test_data.scale and self.args.inverse:
-                    batch_size, seq_len, n_nodes = inputs.shape
+                    batch_size, seq_len, n_nodes, n_feats = inputs.shape
                     inputs = test_data.inverse_transform(inputs.reshape(-1, n_nodes)).reshape(batch_size, seq_len,
-                                                                                              n_nodes)
+                                                                                              n_nodes, n_feats)
                 x_trues.append(inputs.astype(np.float32))
                 batch_x_mark = batch_x_mark.detach().cpu().numpy()
                 batch_y_mark = batch_y_mark.detach().cpu().numpy()
@@ -323,9 +290,7 @@ class Exp_GWNET(Exp_Basic):
                 preds.append(outputs)
                 trues.append(y)
 
-        mae, mse, rmse, mape, mspe = np.average(maes), \
-                                     np.average(mses), np.average(rmses), \
-                                     np.average(mapes), np.average(mspes)
+        mae, rmse, mape = np.average(maes), np.average(rmses), np.average(mapes)
         print('rmse:{:.7f}, mae:{:.7f}, mape:{:.7f}'.format(rmse, mae, mape))
 
         # result save
@@ -340,29 +305,24 @@ class Exp_GWNET(Exp_Basic):
         x_marks = np.array(x_marks)
         y_marks = np.array(y_marks)
         maes = np.array(maes)
-        mses = np.array(mses)
         rmses = np.array(rmses)
-        mspes = np.array(mspes)
         mapes = np.array(mapes)
-        print('test shape:', preds.shape, trues.shape, x_trues.shape, x_marks.shape, y_marks.shape, maes.shape,
-              mses.shape, rmses.shape, mspes.shape, mapes.shape)
+        print('test shape:', preds.shape, trues.shape, x_trues.shape, x_marks.shape, y_marks.shape, maes.shape, rmses.shape, mapes.shape)
         x_trues = x_trues.reshape(-1, x_trues.shape[-2], x_trues.shape[-1])
         x_marks = x_marks.reshape(-1, x_marks.shape[-2], x_marks.shape[-1])
         y_marks = y_marks.reshape(-1, y_marks.shape[-2], y_marks.shape[-1])
-        print('test shape:', preds.shape, trues.shape, x_trues.shape, x_marks.shape, y_marks.shape, maes.shape,
-              mses.shape, rmses.shape, mspes.shape, mapes.shape)
+        print('test shape:', preds.shape, trues.shape, x_trues.shape, x_marks.shape, y_marks.shape, maes.shape, rmses.shape, mapes.shape)
 
-        np.save(folder_path + 'metrics.npy', np.array([mae, mse, rmse, mape, mspe]))
+
+        np.save(folder_path + 'metrics.npy', np.array([mae, rmse, mape]))
         np.save(folder_path + 'pred.npy', preds.detach().cpu().numpy())
         np.save(folder_path + 'true.npy', trues.detach().cpu().numpy())
         np.save(folder_path + 'x_trues.npy', x_trues)
         np.save(folder_path + 'x_marks.npy', x_marks)
         np.save(folder_path + 'y_marks.npy', y_marks)
         np.save(folder_path + 'maes.npy', maes)
-        np.save(folder_path + 'mses.npy', mses)
         np.save(folder_path + 'rmses.npy', rmses)
         np.save(folder_path + 'mapes.npy', mapes)
-        np.save(folder_path + 'mspes.npy', mspes)
 
         return
 

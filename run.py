@@ -33,29 +33,29 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Taformer')
 
     # basic config
-    parser.add_argument('--task_name', type=str, required=False, default='stTrans',
+    parser.add_argument('--task_name', type=str, required=False, default='GWNET',
                         help='task name, options:[forcast, STEP, timeLinear, GWNET, Pretrain, STAEformer, stTrans, '
                              'stTrans_mae, Pretrain_class]')
     parser.add_argument('--is_training', type=int, required=False, default=1, help='train or test')
-    parser.add_argument('--model', type=str, required=False, default='stTrans',
-                        help='model name, options: [Taformer, STEP, timeLinear, GWNET, Pretrain_class '
+    parser.add_argument('--model', type=str, required=False, default='LSTM',
+                        help='model name, options: [Taformer, STEP, timeLinear, GWNET, Pretrain_class, HI, LSTM'
                              'Pretrain, VanillaTransformer, SingleNodeGWNET, STAEformer, stTrans, timeModel, stTrans_mae]')
 
     # path to modify
     # 1. data and adj
     parser.add_argument('--adj_path', type=str, default=r'datasets/PEMS08/adj.npy', help='path of the adjmx')
     parser.add_argument('--root_path', type=str, default='/kaggle/input/traffic-datasets/datasets/', help='root path of the data file')
-    parser.add_argument('--data_path', type=str, default='PEMS08/data.npz', help='data file')
-    parser.add_argument('--data', type=str, required=False, default='PEMS08', help='dataset type, [Pretrain_Forecast, Pretrain_Class]')
-    parser.add_argument('--num_nodes', type=int, required=False, default=170, help='the nodes of dataset')
-    parser.add_argument('--steps_per_day', type=int, default=288, help='')
-    parser.add_argument('--mask_threshold', type=int, default=0, help='')
-    parser.add_argument('--input_dim', type=int, default=3, help='')
-    parser.add_argument('--output_dim', type=int, default=1, help='')
-    parser.add_argument('--seq_len', type=int, default=12, help='input sequence length')
+    parser.add_argument('--data_path', type=str, default='CHIBike/CHIBike', help='data file')
+    parser.add_argument('--data', type=str, required=False, default='CHIBike', help='dataset type, [Pretrain_Forecast, Pretrain_Class]')
+    parser.add_argument('--num_nodes', type=int, required=False, default=270, help='the nodes of dataset')
+    parser.add_argument('--steps_per_day', type=int, default=48, help='')
+    parser.add_argument('--mask_threshold', type=int, default=5, help='')
+    parser.add_argument('--input_dim', type=int, default=4, help='')
+    parser.add_argument('--output_dim', type=int, default=2, help='')
+    parser.add_argument('--seq_len', type=int, default=6, help='input sequence length')
     parser.add_argument('--label_len', type=int, default=12, help='start token length')
     parser.add_argument('--patch_size', type=int, default=1, help='The size of one patch')
-    parser.add_argument('--pred_len', type=int, default=12, help='prediction sequence length')
+    parser.add_argument('--pred_len', type=int, default=1, help='prediction sequence length')
     parser.add_argument('--clip', type=int, default=None, help='clip grad')
 
 
