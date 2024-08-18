@@ -46,7 +46,7 @@ if __name__ == '__main__':
     parser.add_argument('--adj_path', type=str, default=r'datasets/PEMS08/adj.npy', help='path of the adjmx')
     parser.add_argument('--root_path', type=str, default='/kaggle/input/traffic-datasets/datasets/', help='root path of the data file')
     parser.add_argument('--data_path', type=str, default='CHIBike/CHIBike', help='data file')
-    parser.add_argument('--data', type=str, required=False, default='NYCTaxi', help='dataset type, [Pretrain_Forecast, Pretrain_Class]')
+    parser.add_argument('--data', type=str, required=False, default='CHIBike', help='dataset type, [Pretrain_Forecast, Pretrain_Class]')
     parser.add_argument('--num_nodes', type=int, required=False, default=270, help='the nodes of dataset')
     parser.add_argument('--steps_per_day', type=int, default=48, help='')
     parser.add_argument('--mask_threshold', type=int, default=5, help='')
