@@ -14,9 +14,10 @@ class GLU(nn.Module):
 
 
 class StockBlockLayer(nn.Module):
-    def __init__(self, time_step, unit, multi_layer, stack_cnt=0):
+    def __init__(self, time_step, input_dim, unit, multi_layer, stack_cnt=0):
         super(StockBlockLayer, self).__init__()
         self.time_step = time_step
+        self.input_dim = input_dim
         self.unit = unit
         self.stack_cnt = stack_cnt
         self.multi = multi_layer
@@ -37,9 +38,9 @@ class StockBlockLayer(nn.Module):
         for i in range(3):
             if i == 0:
                 self.GLUs.append(
-                    GLU(self.time_step * 4, self.time_step * self.output_channel))
+                    GLU(self.time_step * self.input_dim * 4, self.time_step * self.output_channel))
                 self.GLUs.append(
-                    GLU(self.time_step * 4, self.time_step * self.output_channel))
+                    GLU(self.time_step * self.input_dim * 4, self.time_step * self.output_channel))
             elif i == 1:
                 self.GLUs.append(
                     GLU(self.time_step * self.output_channel, self.time_step * self.output_channel))
@@ -78,8 +79,8 @@ class StockBlockLayer(nn.Module):
         return iffted
 
     def forward(self, x, mul_L):
-        mul_L = mul_L.unsqueeze(1)
-        x = x.unsqueeze(1)
+        mul_L = mul_L  # cheb, c, n, n
+        x = x.unsqueeze(1)  # b, 1, c, n, l
         gfted = torch.matmul(mul_L, x)      # B, cheb_order, 1, N, L
         gconv_input = self.spe_seq_cell(gfted).unsqueeze(2)
         igfted = torch.matmul(gconv_input, self.weight)
@@ -112,14 +113,15 @@ class Model(nn.Module):
         - The experimental setting is not fair in StemGNN, and we can not reproduce the paper's performance.
     """
 
-    def __init__(self, units, stack_cnt, time_step, multi_layer, horizon, dropout_rate=0.5, leaky_rate=0.2, **kwargs):
+    def __init__(self, configs, multi_layer=5, dropout_rate=0.5, leaky_rate=0.2, **kwargs):
         super().__init__()
-        self.unit = units
-        self.stack_cnt = stack_cnt
-        self.unit = units
+        self.output_dim = configs.output_dim
+        self.input_dim = configs.input_dim
+        self.unit = configs.num_nodes
+        self.stack_cnt = 2
         self.alpha = leaky_rate
-        self.time_step = time_step
-        self.horizon = horizon
+        self.time_step = configs.seq_len
+        self.horizon = configs.pred_len
         self.weight_key = nn.Parameter(torch.zeros(size=(self.unit, 1)))
         nn.init.xavier_uniform_(self.weight_key.data, gain=1.414)
         self.weight_query = nn.Parameter(torch.zeros(size=(self.unit, 1)))
@@ -128,11 +130,11 @@ class Model(nn.Module):
         self.multi_layer = multi_layer
         self.stock_block = nn.ModuleList()
         self.stock_block.extend(
-            [StockBlockLayer(self.time_step, self.unit, self.multi_layer, stack_cnt=i) for i in range(self.stack_cnt)])
+            [StockBlockLayer(self.time_step, self.input_dim, self.unit, self.multi_layer, stack_cnt=i) for i in range(self.stack_cnt)])
         self.fc = nn.Sequential(
             nn.Linear(int(self.time_step), int(self.time_step)),
             nn.LeakyReLU(),
-            nn.Linear(int(self.time_step), self.horizon),
+            nn.Linear(int(self.time_step), self.horizon*self.output_dim),
         )
         self.leakyrelu = nn.LeakyReLU(self.alpha)
         self.dropout = nn.Dropout(p=dropout_rate)
@@ -148,10 +150,10 @@ class Model(nn.Module):
         return L
 
     def cheb_polynomial(self, laplacian):
-        N = laplacian.size(0)  # [N, N]
+        c, N, N = laplacian.shape  # [c, N, N]
         laplacian = laplacian.unsqueeze(0)
         first_laplacian = torch.zeros(
-            [1, N, N], device=laplacian.device, dtype=torch.float)
+            [1, c, N, N], device=laplacian.device, dtype=torch.float)
         second_laplacian = laplacian
         third_laplacian = (
             2 * torch.matmul(laplacian, second_laplacian)) - first_laplacian
@@ -162,28 +164,32 @@ class Model(nn.Module):
         return multi_order_laplacian
 
     def latent_correlation_layer(self, x):
+        # b,l,n,c
+        b, l, n, c = x.shape
+        x = x.permute(0, 3, 1, 2).reshape(b*c, l, n).contiguous()
         input, _ = self.GRU(x.permute(2, 0, 1).contiguous())
         input = input.permute(1, 0, 2).contiguous()
-        attention = self.self_graph_attention(input)
+        attention = self.self_graph_attention(input).reshape(b, c, n, n)
         attention = torch.mean(attention, dim=0)
-        degree = torch.sum(attention, dim=1)
+        degree = torch.sum(attention, dim=-1)
         # laplacian is sym or not
-        attention = 0.5 * (attention + attention.T)
-        degree_l = torch.diag(degree)
-        diagonal_degree_hat = torch.diag(1 / (torch.sqrt(degree) + 1e-7))
+        attention = 0.5 * (attention + attention.permute(0, 2, 1))
+        degree_l = torch.diag_embed(degree)
+        diagonal_degree_hat = torch.diag_embed(1 / (torch.sqrt(degree) + 1e-7))
         laplacian = torch.matmul(diagonal_degree_hat,
                                  torch.matmul(degree_l - attention, diagonal_degree_hat))
         mul_L = self.cheb_polynomial(laplacian)
         return mul_L, attention
 
     def self_graph_attention(self, input):
-        input = input.permute(0, 2, 1).contiguous()
+        # b, l, n, c
+        input = input.permute(0, 2, 1).contiguous()  # b, c, n, l
         bat, N, fea = input.size()
-        key = torch.matmul(input, self.weight_key)
-        query = torch.matmul(input, self.weight_query)
-        data = key.repeat(1, 1, N).view(bat, N * N, 1) + query.repeat(1, N, 1)
-        data = data.squeeze(2)
-        data = data.view(bat, N, -1)
+        key = torch.matmul(input, self.weight_key)  # b, c, n, 1
+        query = torch.matmul(input, self.weight_query)  # b, c, n, 1
+        data = key.repeat(1, 1, N).view(bat, N * N, 1) + query.repeat(1, N, 1)  # b, c, n*n, 1
+        data = data.squeeze(2)  # b, c, n*n
+        data = data.view(bat, N, -1)  # b, c, n, n
         data = self.leakyrelu(data)
         attention = F.softmax(data, dim=2)
         attention = self.dropout(attention)
@@ -192,23 +198,23 @@ class Model(nn.Module):
     def graph_fft(self, input, eigenvectors):
         return torch.matmul(eigenvectors, input)
 
-    def forward(self, history_data: torch.Tensor, future_data: torch.Tensor, batch_seen: int, epoch: int, train: bool, **kwargs) -> torch.Tensor:
+    def forward(self, history_data):
         """Feedforward function of StemGNN.
 
         Args:
-            history_data (torch.Tensor): [B, L, N, 1]
+            history_data (torch.Tensor): [B, L, N, c]
 
         Returns:
-            torch.Tensor: [B, L, N, 1]
+            torch.Tensor: [B, L, N, c]
         """
-
-        x = history_data[..., 0]
+        b, l, n, c = history_data.shape
+        x = history_data
         mul_L, attention = self.latent_correlation_layer(x)
-        X = x.unsqueeze(1).permute(0, 1, 3, 2).contiguous()
+        X = x.permute(0, 3, 2, 1).contiguous()  # b, c, n, l
         result = []
         for stack_i in range(self.stack_cnt):
             forecast, X = self.stock_block[stack_i](X, mul_L)
             result.append(forecast)
         forecast = result[0] + result[1]
-        forecast = self.fc(forecast)
-        return forecast.permute(0, 2, 1).contiguous().unsqueeze(-1)
+        forecast = self.fc(forecast).reshape(b, n, self.horizon, self.output_dim)
+        return forecast.permute(0, 2, 1, 3).contiguous()

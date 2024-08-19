@@ -37,9 +37,10 @@ if __name__ == '__main__':
                         help='task name, options:[forcast, STEP, timeLinear, GWNET, Pretrain, STAEformer, stTrans, '
                              'stTrans_mae, Pretrain_class]')
     parser.add_argument('--is_training', type=int, required=False, default=1, help='train or test')
-    parser.add_argument('--model', type=str, required=False, default='ASTGCN',
+    parser.add_argument('--model', type=str, required=False, default='STemGNN',
                         help='model name, options: [Taformer, STEP, timeLinear, GWNET, Pretrain_class, HI, LSTM, ASTGCN'
-                             'Pretrain, VanillaTransformer, SingleNodeGWNET, STAEformer, stTrans, timeModel, stTrans_mae]')
+                             'Pretrain, VanillaTransformer, SingleNodeGWNET, STAEformer, stTrans, timeModel, '
+                             'stTrans_mae, STemGNN]')
 
     # path to modify
     # 1. data and adj
