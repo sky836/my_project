@@ -29,31 +29,32 @@ class MultiLayerPerceptron(nn.Module):
         return hidden
 
 
-class STID(nn.Module):
+class Model(nn.Module):
     """
     The implementation of CIKM 2022 short paper
         "Spatial-Temporal Identity: A Simple yet Effective Baseline for Multivariate Time Series Forecasting"
     Link: https://arxiv.org/abs/2208.05233
     """
 
-    def __init__(self, **model_args):
+    def __init__(self, configs):
         super().__init__()
         # attributes
-        self.num_nodes = model_args["num_nodes"]
-        self.node_dim = model_args["node_dim"]
-        self.input_len = model_args["input_len"]
-        self.input_dim = model_args["input_dim"]
-        self.embed_dim = model_args["embed_dim"]
-        self.output_len = model_args["output_len"]
-        self.num_layer = model_args["num_layer"]
-        self.temp_dim_tid = model_args["temp_dim_tid"]
-        self.temp_dim_diw = model_args["temp_dim_diw"]
-        self.time_of_day_size = model_args["time_of_day_size"]
-        self.day_of_week_size = model_args["day_of_week_size"]
+        self.num_nodes = configs.num_nodes
+        self.node_dim = 32
+        self.input_len = configs.seq_len
+        self.input_dim = configs.input_dim
+        self.output_dim = configs.output_dim
+        self.embed_dim = 32
+        self.output_len = configs.pred_len
+        self.num_layer = 3
+        self.temp_dim_tid = 32
+        self.temp_dim_diw = 32
+        self.time_of_day_size = configs.steps_per_day
+        self.day_of_week_size = 7
 
-        self.if_time_in_day = model_args["if_T_i_D"]
-        self.if_day_in_week = model_args["if_D_i_W"]
-        self.if_spatial = model_args["if_node"]
+        self.if_time_in_day = True
+        self.if_day_in_week = True
+        self.if_spatial = True
 
         # spatial embeddings
         if self.if_spatial:
@@ -72,27 +73,20 @@ class STID(nn.Module):
 
         # embedding layer
         self.time_series_emb_layer = nn.Conv2d(
-            in_channels=self.input_dim * self.input_len, out_channels=self.embed_dim, kernel_size=(1, 1), bias=True)
+            in_channels=(self.input_dim-2) * self.input_len, out_channels=self.embed_dim, kernel_size=(1, 1), bias=True)
 
         # encoding
-        # self.hidden_dim = self.embed_dim+self.node_dim * \
-        #     int(self.if_spatial)+self.temp_dim_tid*int(self.if_time_in_day) + \
-        #     self.temp_dim_diw*int(self.if_day_in_week)
-        self.hidden_dimT = self.temp_dim_tid*int(self.if_time_in_day) + self.temp_dim_diw*int(self.if_day_in_week)
-        self.hidden_dimS = self.embed_dim+self.node_dim * int(self.if_spatial)
-        self.hidden_dim = self.hidden_dimS + self.hidden_dimT
-        self.encoder_T = nn.Sequential(
-            *[MultiLayerPerceptron(self.hidden_dimT, self.hidden_dimT) for _ in range(self.num_layer)])
-        self.encoder_S = nn.Sequential(
-            *[MultiLayerPerceptron(self.hidden_dimS, self.hidden_dimS) for _ in range(self.num_layer)])
-        # self.encoder = nn.Sequential(
-        #         *[SelfAttentionLayer(self.hidden_dim, 256, 4, 0.1) for _ in range(self.num_layer)])
+        self.hidden_dim = self.embed_dim+self.node_dim * \
+            int(self.if_spatial)+self.temp_dim_tid*int(self.if_time_in_day) + \
+            self.temp_dim_diw*int(self.if_day_in_week)
+        self.encoder = nn.Sequential(
+            *[MultiLayerPerceptron(self.hidden_dim, self.hidden_dim) for _ in range(self.num_layer)])
 
         # regression
         self.regression_layer = nn.Conv2d(
-            in_channels=self.hidden_dim, out_channels=self.output_len, kernel_size=(1, 1), bias=True)
+            in_channels=self.hidden_dim, out_channels=self.output_len*self.output_dim, kernel_size=(1, 1), bias=True)
 
-    def forward(self, history_data: torch.Tensor) -> torch.Tensor:
+    def forward(self, history_data) -> torch.Tensor:
         """Feed forward of STID.
 
         Args:
@@ -103,17 +97,17 @@ class STID(nn.Module):
         """
 
         # prepare data
-        input_data = history_data[..., range(self.input_dim)]
+        input_data = history_data[..., range(2)]
 
         if self.if_time_in_day:
-            t_i_d_data = history_data[..., 1]
+            t_i_d_data = history_data[..., 2]
             # In the datasets used in STID, the time_of_day feature is normalized to [0, 1]. We multiply it by 288 to get the index.
             # If you use other datasets, you may need to change this line.
             time_in_day_emb = self.time_in_day_emb[(t_i_d_data[:, -1, :] * self.time_of_day_size).type(torch.LongTensor)]
         else:
             time_in_day_emb = None
         if self.if_day_in_week:
-            d_i_w_data = history_data[..., 2]
+            d_i_w_data = history_data[..., 3]
             day_in_week_emb = self.day_in_week_emb[(
                 d_i_w_data[:, -1, :]).type(torch.LongTensor)]
         else:
@@ -139,17 +133,12 @@ class STID(nn.Module):
             tem_emb.append(day_in_week_emb.transpose(1, 2).unsqueeze(-1))
 
         # concate all embeddings
-        hidden_T = torch.cat(tem_emb, dim=1)
-        hidden_S = torch.cat([time_series_emb] + node_emb, dim=1)
-        # hidden = torch.cat([time_series_emb] + node_emb + tem_emb, dim=1)
+        hidden = torch.cat([time_series_emb] + node_emb + tem_emb, dim=1)
 
         # encoding
-        # hidden = self.encoder(hidden)
-        hidden_S = self.encoder_S(hidden_S)
-        hidden_T = self.encoder_T(hidden_T)
-        hidden  = torch.cat([hidden_T, hidden_S], dim=1)
+        hidden = self.encoder(hidden)
 
         # regression
-        prediction = self.regression_layer(hidden)
+        prediction = self.regression_layer(hidden).permute(0, 3, 2, 1)
 
         return prediction
