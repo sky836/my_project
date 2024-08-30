@@ -12,7 +12,7 @@ from scipy.sparse.csgraph import dijkstra
 class temporalEmbedding(nn.Module):
     def __init__(self, D):
         super(temporalEmbedding, self).__init__()
-        self.ff_te = FeedForward([31, D, D])
+        self.ff_te = FeedForward([55, D, D])
 
     def forward(self, TE, T=288, W=7):
         '''
@@ -310,7 +310,7 @@ class Model(nn.Module):
     Hints: PyWavelets and pytorch_wavelets packages are needed
     """
 
-    def __init__(self, configs, hidden_size=128, log_samples=1, layers=2, wave_type="coif1", wave_levels=2):
+    def __init__(self, configs, hidden_size=64, log_samples=1, layers=2, wave_type="coif1", wave_levels=2):
         super().__init__()
         self.start_emb_l = FeedForward([configs.output_dim, hidden_size, hidden_size])
         self.start_emb_h = FeedForward([configs.output_dim, hidden_size, hidden_size])
@@ -318,8 +318,8 @@ class Model(nn.Module):
         self.num_nodes = configs.num_nodes
 
         adj_mx = np.zeros((self.num_nodes, self.num_nodes), dtype=np.float32)
-        self.len_row = 32
-        self.len_column = 32
+        self.len_row = 15
+        self.len_column = 5
         dirs = [[0, 1], [1, 0], [-1, 0], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]
         for i in range(self.len_row):
             for j in range(self.len_column):
@@ -332,7 +332,7 @@ class Model(nn.Module):
                         adj_mx[index][nei_index] = 1
                         adj_mx[nei_index][index] = 1
 
-        adj_gat, gwv = loadGraph(adj_mx, 128, 1)
+        adj_gat, gwv = loadGraph(adj_mx, 64, 1)
 
         self.dual_encoder = nn.ModuleList(
             [dualEncoder(hidden_size, log_samples, adj_gat, gwv) for i in range(layers)])
