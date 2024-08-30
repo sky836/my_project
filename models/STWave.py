@@ -12,7 +12,7 @@ from scipy.sparse.csgraph import dijkstra
 class temporalEmbedding(nn.Module):
     def __init__(self, D):
         super(temporalEmbedding, self).__init__()
-        self.ff_te = FeedForward([55, D, D])
+        self.ff_te = FeedForward([31, D, D])
 
     def forward(self, TE, T=288, W=7):
         '''
