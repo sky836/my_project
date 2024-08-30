@@ -12,6 +12,7 @@ from exp.exp_GWNET import Exp_GWNET
 from exp.exp_pretrain import Exp_Pretrain
 from exp.exp_stTrans_mae import Exp_stTrans_mae
 from exp.exp_pretrain_class import Exp_Pretrain_Class
+from exp.exp_STWAVE import Exp_STWAVE
 # from utils.print_args import print_args
 import random
 import numpy as np
@@ -33,24 +34,24 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Taformer')
 
     # basic config
-    parser.add_argument('--task_name', type=str, required=False, default='GWNET',
+    parser.add_argument('--task_name', type=str, required=False, default='STWave',
                         help='task name, options:[forcast, STEP, timeLinear, GWNET, Pretrain, STAEformer, stTrans, '
-                             'stTrans_mae, Pretrain_class]')
+                             'stTrans_mae, Pretrain_class, STWave]')
     parser.add_argument('--is_training', type=int, required=False, default=1, help='train or test')
-    parser.add_argument('--model', type=str, required=False, default='STID',
+    parser.add_argument('--model', type=str, required=False, default='STWave',
                         help='model name, options: [Taformer, STEP, timeLinear, GWNET, Pretrain_class, HI, LSTM, ASTGCN'
                              'Pretrain, VanillaTransformer, SingleNodeGWNET, STAEformer, stTrans, timeModel, '
-                             'stTrans_mae, STemGNN, STID]')
+                             'stTrans_mae, STemGNN, STID, STWave]')
 
     # path to modify
     # 1. data and adj
     parser.add_argument('--adj_path', type=str, default=r'datasets/PEMS08/adj.npy', help='path of the adjmx')
     parser.add_argument('--root_path', type=str, default='/kaggle/input/traffic-datasets/datasets/', help='root path of the data file')
-    parser.add_argument('--data_path', type=str, default='T-Drive/T-Drive', help='data file')
-    parser.add_argument('--data', type=str, required=False, default='TDrive', help='dataset type, [Pretrain_Forecast, Pretrain_Class]')
-    parser.add_argument('--num_nodes', type=int, required=False, default=1024, help='the nodes of dataset')
-    parser.add_argument('--steps_per_day', type=int, default=24, help='')
-    parser.add_argument('--mask_threshold', type=int, default=10, help='')
+    parser.add_argument('--data_path', type=str, default='CHIBike/CHIBike', help='data file')
+    parser.add_argument('--data', type=str, required=False, default='CHIBike', help='dataset type, [Pretrain_Forecast, Pretrain_Class]')
+    parser.add_argument('--num_nodes', type=int, required=False, default=270, help='the nodes of dataset')
+    parser.add_argument('--steps_per_day', type=int, default=48, help='')
+    parser.add_argument('--mask_threshold', type=int, default=5, help='')
     parser.add_argument('--input_dim', type=int, default=4, help='')
     parser.add_argument('--output_dim', type=int, default=2, help='')
     parser.add_argument('--seq_len', type=int, default=6, help='input sequence length')
@@ -95,7 +96,7 @@ if __name__ == '__main__':
     parser.add_argument('--itr', type=int, default=1, help='experiments times')
     parser.add_argument('--train_epochs', type=int, default=200, help='train epochs')
     parser.add_argument('--warmup_epochs', type=int, default=0, help='warmup epochs')
-    parser.add_argument('--batch_size', type=int, default=16, help='batch size of train input data')
+    parser.add_argument('--batch_size', type=int, default=1, help='batch size of train input data')
     parser.add_argument('--patience', type=int, default=30, help='early stopping patience')
     parser.add_argument('--learning_rate', type=float, default=0.001, help='optimizer learning rate')
     parser.add_argument('--weight_decay', type=float, default=0.0003, help='optimizer weight_decay')
@@ -147,6 +148,8 @@ if __name__ == '__main__':
         Exp = Exp_stTrans_mae
     elif args.task_name == 'Pretrain_class':
         Exp = Exp_Pretrain_Class
+    elif args.task_name == 'STWave':
+        Exp = Exp_STWAVE
     else:
         Exp = Exp_Forecast
 

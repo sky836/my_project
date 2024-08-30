@@ -23,9 +23,9 @@ import numpy as np
 warnings.filterwarnings('ignore')
 
 
-class Exp_GWNET(Exp_Basic):
+class Exp_STWAVE(Exp_Basic):
     def __init__(self, args):
-        super(Exp_GWNET, self).__init__(args)
+        super().__init__(args)
         self.pos = 0
 
     def _build_model(self):
@@ -38,14 +38,7 @@ class Exp_GWNET(Exp_Basic):
         # supports = [torch.tensor(i).to(self.device) for i in adj]
         supports = None
         # .float(): 将模型的参数和张量转换为浮点数类型
-        if self.args.model == 'GWNET' or self.args.model =='singleNodeGWNET':
-            model = self.model_dict[self.args.model].Model(num_nodes=self.args.num_nodes, supports=supports).float()
-        elif self.args.model == 'VanillaTransformer':
-            model = self.model_dict[self.args.model].Model(self.args, supports=supports, device=self.device).float()
-        elif self.args.model == 'ASTGCN':
-            model = self.model_dict[self.args.model].Model(self.args, device=self.device).float()
-        else:
-            model = self.model_dict[self.args.model].Model(self.args).float()
+        model = self.model_dict[self.args.model].Model(self.args).float()
 
         return model
 
@@ -79,23 +72,20 @@ class Exp_GWNET(Exp_Basic):
                 batch_x = batch_x.float().to(self.device)
                 batch_y = batch_y.float().to(self.device)
 
-                outputs = self.model(batch_x)
+                hat_y, _, _ = self.model(batch_x, batch_y)
 
                 y = batch_y[..., :self.args.output_dim]
                 if vali_data.scale and self.args.inverse:
-                    batch_size, pred_len, n_nodes, n_feats = outputs.shape
-                    outputs = vali_data.inverse_transform(outputs.reshape(-1, n_nodes, n_feats)).reshape(batch_size,
-                                                                                                         pred_len,
-                                                                                                         n_nodes,
-                                                                                                         n_feats)
-                loss = criterion(outputs, y, 0.0)
+                    batch_size, pred_len, n_nodes, n_feats = hat_y.shape
+                    hat_y = vali_data.inverse_transform(hat_y.reshape(-1, n_nodes, n_feats)).reshape(batch_size,pred_len,n_nodes,n_feats)
+                loss = criterion(hat_y, y, 0.0)
                 total_loss.append(loss.item())
 
-                mae, rmse, mape = metric(outputs, y, 0.0, self.args.mask_threshold)
+                mae, rmse, mape = metric(hat_y, y, 0.0, self.args.mask_threshold)
                 maes.append(mae.item())
                 rmses.append(rmse.item())
                 mapes.append(mape.item())
-                preds.append(outputs)
+                preds.append(hat_y)
                 trues.append(y)
 
             total_loss, maes, rmses, mapes = np.average(total_loss), np.average(maes), np.average(rmses), np.average(mapes)
@@ -108,10 +98,10 @@ class Exp_GWNET(Exp_Basic):
         train_data, train_loader = self._get_data(flag='train')
         vali_data, vali_loader = self._get_data(flag='val')
         test_data, test_loader = self._get_data(flag='test')
-        log_path = self.args.log_path + setting + '/'
-        if not os.path.exists(log_path):
-            os.makedirs(log_path)
-        # log_path = '/kaggle/working/'  # 使用kaggle跑实验时的路径
+        # log_path = self.args.log_path + setting + '/'
+        # if not os.path.exists(log_path):
+        #     os.makedirs(log_path)
+        log_path = '/kaggle/working/'  # 使用kaggle跑实验时的路径
         now = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
         log = os.path.join(log_path, f"{self.args.model}-{self.args.data}-{now}.log")
         log = open(log, "a")
@@ -145,7 +135,7 @@ class Exp_GWNET(Exp_Basic):
                     self.model,
                     [
                         (self.args.batch_size, self.args.seq_len, self.args.num_nodes, self.args.input_dim),
-                        (self.args.batch_size, self.args.pred_len, self.args.num_nodes, self.args.output_dim),
+                        (self.args.batch_size, self.args.seq_len, self.args.num_nodes, self.args.output_dim)
                     ],
                     verbose=0,  # avoid print twice
                 )
@@ -174,17 +164,15 @@ class Exp_GWNET(Exp_Basic):
                 batch_x = batch_x.float().to(self.device)
                 batch_y = batch_y.float().to(self.device)
 
-                outputs = self.model(batch_x)
+                hat_y, hat_y_l, label_yl = self.model(batch_x, batch_y)
                 y = batch_y[..., :self.args.output_dim]
 
-                batch_size, pred_len, n_nodes, n_feats = outputs.shape
+                batch_size, pred_len, n_nodes, n_feats = hat_y.shape
                 if train_data.scale and self.args.inverse:
-                    outputs = train_data.inverse_transform(outputs.reshape(-1, n_nodes, n_feats)).reshape(batch_size,
-                                                                                                          pred_len,
-                                                                                                          n_nodes,
-                                                                                                          n_feats)
+                    hat_y = train_data.inverse_transform(hat_y.reshape(-1, n_nodes, n_feats)).reshape(batch_size,pred_len,n_nodes,n_feats)
+                    hat_y_l = train_data.inverse_transform(hat_y_l.reshape(-1, n_nodes, n_feats)).reshape(batch_size,pred_len,n_nodes,n_feats)
 
-                loss = criterion(outputs, y, 0.0)
+                loss = criterion(hat_y, y, 0.0) + criterion(hat_y_l, label_yl, 0.0)
                 train_loss.append(loss.item())
 
                 if (i + 1) % 100 == 0:
@@ -265,7 +253,7 @@ class Exp_GWNET(Exp_Basic):
                 batch_x = batch_x.float().to(self.device)
                 batch_y = batch_y.float().to(self.device)
 
-                outputs = self.model(batch_x)
+                outputs, _, _ = self.model(batch_x, batch_y)
                 y = batch_y[..., :self.args.output_dim]
                 if test_data.scale and self.args.inverse:
                     batch_size, pred_len, n_nodes, n_feats = outputs.shape
