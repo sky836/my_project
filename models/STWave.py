@@ -318,8 +318,8 @@ class Model(nn.Module):
         self.num_nodes = configs.num_nodes
 
         adj_mx = np.zeros((self.num_nodes, self.num_nodes), dtype=np.float32)
-        self.len_row = 15
-        self.len_column = 18
+        self.len_row = 32
+        self.len_column = 32
         dirs = [[0, 1], [1, 0], [-1, 0], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]
         for i in range(self.len_row):
             for j in range(self.len_column):
