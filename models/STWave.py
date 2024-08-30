@@ -323,12 +323,12 @@ class Model(nn.Module):
         dirs = [[0, 1], [1, 0], [-1, 0], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]
         for i in range(self.len_row):
             for j in range(self.len_column):
-                index = i * self.len_row + j  # grid_id
+                index = i * self.len_column + j  # grid_id
                 for d in dirs:
                     nei_i = i + d[0]
                     nei_j = j + d[1]
                     if nei_i >= 0 and nei_i < self.len_row and nei_j >= 0 and nei_j < self.len_column:
-                        nei_index = nei_i * self.len_row + nei_j  # neighbor_grid_id
+                        nei_index = nei_i * self.len_column + nei_j  # neighbor_grid_id
                         adj_mx[index][nei_index] = 1
                         adj_mx[nei_index][index] = 1
 
