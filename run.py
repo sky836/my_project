@@ -47,9 +47,9 @@ if __name__ == '__main__':
     # 1. data and adj
     parser.add_argument('--adj_path', type=str, default=r'/kaggle/input/traffic-datasets/datasets/PEMSBAY/adj_PEMS-BAY.pkl', help='path of the adjmx')
     parser.add_argument('--root_path', type=str, default='/kaggle/input/d/qqbb8769/traffic-datasets/datasets/', help='root path of the data file')
-    parser.add_argument('--data_path', type=str, default='PEMS03/data.npz', help='data file')
-    parser.add_argument('--data', type=str, required=False, default='PEMS03', help='dataset type, [Pretrain_Forecast, Pretrain_Class]')
-    parser.add_argument('--num_nodes', type=int, required=False, default=358, help='the nodes of dataset')
+    parser.add_argument('--data_path', type=str, default='PEMSBAY/data.npz', help='data file')
+    parser.add_argument('--data', type=str, required=False, default='PEMSBAY', help='dataset type, [Pretrain_Forecast, Pretrain_Class]')
+    parser.add_argument('--num_nodes', type=int, required=False, default=325, help='the nodes of dataset')
     parser.add_argument('--steps_per_day', type=int, default=288, help='')
     parser.add_argument('--mask_threshold', type=int, default=0, help='')
     parser.add_argument('--input_dim', type=int, default=3, help='')
