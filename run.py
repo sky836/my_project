@@ -38,7 +38,7 @@ if __name__ == '__main__':
                         help='task name, options:[forcast, STEP, timeLinear, GWNET, Pretrain, STAEformer, stTrans, '
                              'stTrans_mae, Pretrain_class, STWave]')
     parser.add_argument('--is_training', type=int, required=False, default=1, help='train or test')
-    parser.add_argument('--model', type=str, required=False, default='STID',
+    parser.add_argument('--model', type=str, required=False, default='STemGNN',
                         help='model name, options: [Taformer, STEP, timeLinear, GWNET, Pretrain_class, HI, LSTM, ASTGCN'
                              'Pretrain, VanillaTransformer, SingleNodeGWNET, STAEformer, stTrans, timeModel, '
                              'stTrans_mae, STemGNN, STID, STWave]')
@@ -46,7 +46,7 @@ if __name__ == '__main__':
     # path to modify
     # 1. data and adj
     parser.add_argument('--adj_path', type=str, default=r'/kaggle/input/traffic-datasets/datasets/PEMSBAY/adj_PEMS-BAY.pkl', help='path of the adjmx')
-    parser.add_argument('--root_path', type=str, default='/kaggle/input/traffic-datasets/datasets/', help='root path of the data file')
+    parser.add_argument('--root_path', type=str, default='/kaggle/input/d/qqbb8769/traffic-datasets/datasets/', help='root path of the data file')
     parser.add_argument('--data_path', type=str, default='PEMS03/data.npz', help='data file')
     parser.add_argument('--data', type=str, required=False, default='PEMS03', help='dataset type, [Pretrain_Forecast, Pretrain_Class]')
     parser.add_argument('--num_nodes', type=int, required=False, default=358, help='the nodes of dataset')
