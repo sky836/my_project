@@ -45,19 +45,19 @@ if __name__ == '__main__':
 
     # path to modify
     # 1. data and adj
-    parser.add_argument('--adj_path', type=str, default=r'datasets/PEMS08/adj.npy', help='path of the adjmx')
+    parser.add_argument('--adj_path', type=str, default=r'/kaggle/input/traffic-datasets/datasets/METRLA/adj_METR-LA.pkl', help='path of the adjmx')
     parser.add_argument('--root_path', type=str, default='/kaggle/input/traffic-datasets/datasets/', help='root path of the data file')
-    parser.add_argument('--data_path', type=str, default='NYCTaxi/NYCTaxi', help='data file')
-    parser.add_argument('--data', type=str, required=False, default='NYCTaxi', help='dataset type, [Pretrain_Forecast, Pretrain_Class]')
-    parser.add_argument('--num_nodes', type=int, required=False, default=75, help='the nodes of dataset')
-    parser.add_argument('--steps_per_day', type=int, default=48, help='')
-    parser.add_argument('--mask_threshold', type=int, default=10, help='')
-    parser.add_argument('--input_dim', type=int, default=4, help='')
-    parser.add_argument('--output_dim', type=int, default=2, help='')
-    parser.add_argument('--seq_len', type=int, default=6, help='input sequence length')
+    parser.add_argument('--data_path', type=str, default='METRLA/data.npz', help='data file')
+    parser.add_argument('--data', type=str, required=False, default='METRLA', help='dataset type, [Pretrain_Forecast, Pretrain_Class]')
+    parser.add_argument('--num_nodes', type=int, required=False, default=207, help='the nodes of dataset')
+    parser.add_argument('--steps_per_day', type=int, default=288, help='')
+    parser.add_argument('--mask_threshold', type=int, default=0, help='')
+    parser.add_argument('--input_dim', type=int, default=3, help='')
+    parser.add_argument('--output_dim', type=int, default=1, help='')
+    parser.add_argument('--seq_len', type=int, default=12, help='input sequence length')
     parser.add_argument('--label_len', type=int, default=12, help='start token length')
     parser.add_argument('--patch_size', type=int, default=1, help='The size of one patch')
-    parser.add_argument('--pred_len', type=int, default=1, help='prediction sequence length')
+    parser.add_argument('--pred_len', type=int, default=12, help='prediction sequence length')
     parser.add_argument('--clip', type=int, default=None, help='clip grad')
 
 

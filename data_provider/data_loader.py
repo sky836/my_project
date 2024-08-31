@@ -264,7 +264,7 @@ class Dataset_PEMS08(Dataset):
 
     def __read_data__(self):
         data_file_path = os.path.join(self.root_path, self.data_path)
-        data = np.load(data_file_path)['data'].astype(np.float32)
+        data = np.load(data_file_path, allow_pickle=True)['data'].astype(np.float32)
 
         time = data[..., 1:]
         data = data[..., 0]

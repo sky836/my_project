@@ -1,3 +1,5 @@
+import pickle
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -12,7 +14,7 @@ from scipy.sparse.csgraph import dijkstra
 class temporalEmbedding(nn.Module):
     def __init__(self, D):
         super(temporalEmbedding, self).__init__()
-        self.ff_te = FeedForward([55, D, D])
+        self.ff_te = FeedForward([295, D, D])
 
     def forward(self, TE, T=288, W=7):
         '''
@@ -310,29 +312,32 @@ class Model(nn.Module):
     Hints: PyWavelets and pytorch_wavelets packages are needed
     """
 
-    def __init__(self, configs, hidden_size=64, log_samples=1, layers=2, wave_type="coif1", wave_levels=2):
+    def __init__(self, configs, hidden_size=128, log_samples=1, layers=2, wave_type="coif1", wave_levels=2):
         super().__init__()
         self.start_emb_l = FeedForward([configs.output_dim, hidden_size, hidden_size])
         self.start_emb_h = FeedForward([configs.output_dim, hidden_size, hidden_size])
         self.te_emb = temporalEmbedding(hidden_size)
         self.num_nodes = configs.num_nodes
 
-        adj_mx = np.zeros((self.num_nodes, self.num_nodes), dtype=np.float32)
-        self.len_row = 15
-        self.len_column = 5
-        dirs = [[0, 1], [1, 0], [-1, 0], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]
-        for i in range(self.len_row):
-            for j in range(self.len_column):
-                index = i * self.len_column + j  # grid_id
-                for d in dirs:
-                    nei_i = i + d[0]
-                    nei_j = j + d[1]
-                    if nei_i >= 0 and nei_i < self.len_row and nei_j >= 0 and nei_j < self.len_column:
-                        nei_index = nei_i * self.len_column + nei_j  # neighbor_grid_id
-                        adj_mx[index][nei_index] = 1
-                        adj_mx[nei_index][index] = 1
+        # adj_mx = np.zeros((self.num_nodes, self.num_nodes), dtype=np.float32)
+        # self.len_row = 15
+        # self.len_column = 5
+        # dirs = [[0, 1], [1, 0], [-1, 0], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]
+        # for i in range(self.len_row):
+        #     for j in range(self.len_column):
+        #         index = i * self.len_column + j  # grid_id
+        #         for d in dirs:
+        #             nei_i = i + d[0]
+        #             nei_j = j + d[1]
+        #             if nei_i >= 0 and nei_i < self.len_row and nei_j >= 0 and nei_j < self.len_column:
+        #                 nei_index = nei_i * self.len_column + nei_j  # neighbor_grid_id
+        #                 adj_mx[index][nei_index] = 1
+        #                 adj_mx[nei_index][index] = 1
+        with open(configs.adj_path, 'rb') as f:
+            pickle_data = pickle.load(f, encoding="latin1")
+        adj_mx = pickle_data[2]
 
-        adj_gat, gwv = loadGraph(adj_mx, 64, 1)
+        adj_gat, gwv = loadGraph(adj_mx, 128, 1)
 
         self.dual_encoder = nn.ModuleList(
             [dualEncoder(hidden_size, log_samples, adj_gat, gwv) for i in range(layers)])
@@ -349,13 +354,14 @@ class Model(nn.Module):
         self.id = configs.input_dim
         self.wt = wave_type
         self.wl = wave_levels
+        self.output_dim = configs.output_dim
 
     def forward(self, history_data, future_data):
         '''
         x:[B,T,N,D]
         '''
         x = history_data
-        te = torch.cat([x[:, :, 0, 2:3] * self.td, x[:, :, 0, 3:] * self.dw], -1)
+        te = torch.cat([x[:, :, 0, 1:2] * self.td, x[:, :, 0, 2:] * self.dw], -1)
         ADD = torch.arange(te.shape[1]).to(x.device).unsqueeze(0).unsqueeze(2) + 1
         TEYTOD = (te[:, -1:, 0:1] + ADD) % self.td
         TEYDOW = (torch.floor((te[:, -1:, 0:1] + ADD) / self.td) + te[..., 1:2]) % self.dw
@@ -363,7 +369,7 @@ class Model(nn.Module):
         te = te[..., [1, 0]]
 
         inputs = x[..., :self.id]
-        xl, xh = disentangle(inputs[..., 0:2].cpu().numpy(), self.wt, self.wl)
+        xl, xh = disentangle(inputs[..., 0:self.output_dim].cpu().numpy(), self.wt, self.wl)
 
         xl, xh, TE = self.start_emb_l(xl.to(x.device)), self.start_emb_h(xh.to(x.device)), self.te_emb(te, self.td,
                                                                                                        self.dw)
