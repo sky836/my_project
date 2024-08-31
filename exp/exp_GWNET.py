@@ -144,8 +144,7 @@ class Exp_GWNET(Exp_Basic):
                 summary(
                     self.model,
                     [
-                        (self.args.batch_size, self.args.seq_len, self.args.num_nodes, self.args.input_dim),
-                        (self.args.batch_size, self.args.pred_len, self.args.num_nodes, self.args.output_dim),
+                        (self.args.batch_size, self.args.seq_len, self.args.num_nodes, self.args.input_dim)
                     ],
                     verbose=0,  # avoid print twice
                 )

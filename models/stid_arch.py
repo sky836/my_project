@@ -97,17 +97,17 @@ class Model(nn.Module):
         """
 
         # prepare data
-        input_data = history_data[..., range(2)]
+        input_data = history_data[..., range(1)]
 
         if self.if_time_in_day:
-            t_i_d_data = history_data[..., 2]
+            t_i_d_data = history_data[..., 1]
             # In the datasets used in STID, the time_of_day feature is normalized to [0, 1]. We multiply it by 288 to get the index.
             # If you use other datasets, you may need to change this line.
             time_in_day_emb = self.time_in_day_emb[(t_i_d_data[:, -1, :] * self.time_of_day_size).type(torch.LongTensor)]
         else:
             time_in_day_emb = None
         if self.if_day_in_week:
-            d_i_w_data = history_data[..., 3]
+            d_i_w_data = history_data[..., 2]
             day_in_week_emb = self.day_in_week_emb[(
                 d_i_w_data[:, -1, :]).type(torch.LongTensor)]
         else:
