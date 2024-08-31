@@ -1,3 +1,5 @@
+import pickle
+
 import torch
 from torch import nn
 import numpy as np
@@ -10,24 +12,23 @@ def count_parameters(model):
 
 
 class Seq2SeqAttrs:
-    def __init__(self, adj_mx, **model_kwargs):
+    def __init__(self, adj_mx, rnn_units, max_diffusion_step=2, cl_decay_steps=1000, filter_type="laplacian", num_nodes=1, num_rnn_layers=1):
         self.adj_mx = adj_mx
-        self.max_diffusion_step = int(
-            model_kwargs.get("max_diffusion_step", 2))
-        self.cl_decay_steps = int(model_kwargs.get("cl_decay_steps", 1000))
-        self.filter_type = model_kwargs.get("filter_type", "laplacian")
-        self.num_nodes = int(model_kwargs.get("num_nodes", 1))
-        self.num_rnn_layers = int(model_kwargs.get("num_rnn_layers", 1))
-        self.rnn_units = int(model_kwargs.get("rnn_units"))
+        self.max_diffusion_step = max_diffusion_step
+        self.cl_decay_steps = cl_decay_steps
+        self.filter_type = filter_type
+        self.num_nodes = num_nodes
+        self.num_rnn_layers = num_rnn_layers
+        self.rnn_units = rnn_units
         self.hidden_state_size = self.num_nodes * self.rnn_units
 
 
 class EncoderModel(nn.Module, Seq2SeqAttrs):
-    def __init__(self, adj_mx, **model_kwargs):
+    def __init__(self, adj_mx, input_dim, seq_len, rnn_units, num_nodes):
         nn.Module.__init__(self)
-        Seq2SeqAttrs.__init__(self, adj_mx, **model_kwargs)
-        self.input_dim = int(model_kwargs.get("input_dim", 1))
-        self.seq_len = int(model_kwargs.get("seq_len"))  # for the encoder
+        Seq2SeqAttrs.__init__(self, adj_mx, rnn_units, max_diffusion_step=2, cl_decay_steps=1000, filter_type="laplacian", num_nodes=num_nodes, num_rnn_layers=1)
+        self.input_dim = input_dim
+        self.seq_len = seq_len  # for the encoder
         self.dcgru_layers = nn.ModuleList(
             [DCGRUCell(self.rnn_units, adj_mx, self.max_diffusion_step, self.num_nodes) for _ in range(self.num_rnn_layers)])
 
@@ -48,12 +49,12 @@ class EncoderModel(nn.Module, Seq2SeqAttrs):
 
 
 class DecoderModel(nn.Module, Seq2SeqAttrs):
-    def __init__(self, adj_mx, **model_kwargs):
+    def __init__(self, adj_mx, output_dim, horizon, rnn_units, num_nodes):
         # super().__init__(is_training, adj_mx, **model_kwargs)
         nn.Module.__init__(self)
-        Seq2SeqAttrs.__init__(self, adj_mx, **model_kwargs)
-        self.output_dim = int(model_kwargs.get("output_dim", 1))
-        self.horizon = int(model_kwargs.get("horizon", 1))  # for the decoder
+        Seq2SeqAttrs.__init__(self, adj_mx, rnn_units, max_diffusion_step=2, cl_decay_steps=1000, filter_type="laplacian", num_nodes=num_nodes, num_rnn_layers=1)
+        self.output_dim = output_dim
+        self.horizon = horizon  # for the decoder
         self.projection_layer = nn.Linear(self.rnn_units, self.output_dim)
         self.dcgru_layers = nn.ModuleList(
             [DCGRUCell(self.rnn_units, adj_mx, self.max_diffusion_step, self.num_nodes) for _ in range(self.num_rnn_layers)])
@@ -81,14 +82,17 @@ class Model(nn.Module, Seq2SeqAttrs):
         https://github.com/chnsh/DCRNN_PyTorch/blob/pytorch_scratch/model/pytorch/dcrnn_model.py
     """
 
-    def __init__(self, adj_mx, **model_kwargs):
+    def __init__(self, configs, adj_mx, cl_decay_steps=2000, use_curriculum_learning=False):
         super().__init__()
-        Seq2SeqAttrs.__init__(self, adj_mx, **model_kwargs)
-        self.encoder_model = EncoderModel(adj_mx, **model_kwargs)
-        self.decoder_model = DecoderModel(adj_mx, **model_kwargs)
-        self.cl_decay_steps = int(model_kwargs.get("cl_decay_steps", 2000))
-        self.use_curriculum_learning = bool(
-            model_kwargs.get("use_curriculum_learning", False))
+        # with open(configs.adj_path, 'rb') as f:
+        #     pickle_data = pickle.load(f, encoding="latin1")
+        # adj_mx = pickle_data[2]
+        # adj_mx = torch.Tensor(adj_mx)
+        Seq2SeqAttrs.__init__(self, adj_mx, rnn_units=64, num_nodes=configs.num_nodes)
+        self.encoder_model = EncoderModel(adj_mx, input_dim=configs.input_dim, seq_len=configs.seq_len, rnn_units=64, num_nodes=configs.num_nodes)
+        self.decoder_model = DecoderModel(adj_mx, output_dim=configs.output_dim, horizon=configs.pred_len, rnn_units=64, num_nodes=configs.num_nodes)
+        self.cl_decay_steps = cl_decay_steps
+        self.use_curriculum_learning = use_curriculum_learning
 
     def _compute_sampling_threshold(self, batches_seen):
         return self.cl_decay_steps / (
