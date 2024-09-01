@@ -30,13 +30,13 @@ class Exp_GWNET(Exp_Basic):
 
     def _build_model(self):
         # 读取邻接矩阵
-        # with open(self.args.adj_path, 'rb') as f:
-        #     pickle_data = pickle.load(f, encoding="latin1")
-        # adj_mx = pickle_data[2]
-        # adj = [self.asym_adj(adj_mx), self.asym_adj(np.transpose(adj_mx))]
-        # num_nodes = len(pickle_data[0])
-        # supports = [torch.tensor(i).to(self.device) for i in adj]
-        supports = None
+        with open(self.args.adj_path, 'rb') as f:
+            pickle_data = pickle.load(f, encoding="latin1")
+        adj_mx = pickle_data[2]
+        adj = [self.asym_adj(adj_mx), self.asym_adj(np.transpose(adj_mx))]
+        num_nodes = len(pickle_data[0])
+        supports = [torch.tensor(i).to(self.device) for i in adj]
+        # supports = None
         # .float(): 将模型的参数和张量转换为浮点数类型
         if self.args.model == 'GWNET' or self.args.model =='singleNodeGWNET':
             model = self.model_dict[self.args.model].Model(num_nodes=self.args.num_nodes, supports=supports).float()

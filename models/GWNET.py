@@ -223,5 +223,5 @@ class Model(nn.Module):
         x = self.end_conv_2(x)
 
         # reshape output: [B, P, N, 1] -> [B, N, P]
-        x = x.squeeze(-1)
+        x = x
         return x

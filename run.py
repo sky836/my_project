@@ -38,7 +38,7 @@ if __name__ == '__main__':
                         help='task name, options:[forcast, STEP, timeLinear, GWNET, Pretrain, STAEformer, stTrans, '
                              'stTrans_mae, Pretrain_class, STWave]')
     parser.add_argument('--is_training', type=int, required=False, default=1, help='train or test')
-    parser.add_argument('--model', type=str, required=False, default='STemGNN',
+    parser.add_argument('--model', type=str, required=False, default='GWNET',
                         help='model name, options: [Taformer, STEP, timeLinear, GWNET, Pretrain_class, HI, LSTM, ASTGCN'
                              'Pretrain, VanillaTransformer, SingleNodeGWNET, STAEformer, stTrans, timeModel, '
                              'stTrans_mae, STemGNN, STID, STWave, DCRNN]')
