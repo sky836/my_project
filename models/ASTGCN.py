@@ -1,4 +1,5 @@
 import math
+import pickle
 
 import torch
 import torch.nn as nn
@@ -281,20 +282,23 @@ class Model(AbstractTrafficStateModel):
         self.nb_chev_filter = 64
         self.nb_time_filter = 64
 
-        adj_mx = np.zeros((self.num_nodes, self.num_nodes), dtype=np.float32)
-        self.len_row = 15
-        self.len_column = 5
-        dirs = [[0, 1], [1, 0], [-1, 0], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]
-        for i in range(self.len_row):
-            for j in range(self.len_column):
-                index = i * self.len_column + j  # grid_id
-                for d in dirs:
-                    nei_i = i + d[0]
-                    nei_j = j + d[1]
-                    if nei_i >= 0 and nei_i < self.len_row and nei_j >= 0 and nei_j < self.len_column:
-                        nei_index = nei_i * self.len_column + nei_j  # neighbor_grid_id
-                        adj_mx[index][nei_index] = 1
-                        adj_mx[nei_index][index] = 1
+        # adj_mx = np.zeros((self.num_nodes, self.num_nodes), dtype=np.float32)
+        # self.len_row = 15
+        # self.len_column = 5
+        # dirs = [[0, 1], [1, 0], [-1, 0], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]
+        # for i in range(self.len_row):
+        #     for j in range(self.len_column):
+        #         index = i * self.len_column + j  # grid_id
+        #         for d in dirs:
+        #             nei_i = i + d[0]
+        #             nei_j = j + d[1]
+        #             if nei_i >= 0 and nei_i < self.len_row and nei_j >= 0 and nei_j < self.len_column:
+        #                 nei_index = nei_i * self.len_column + nei_j  # neighbor_grid_id
+        #                 adj_mx[index][nei_index] = 1
+        #                 adj_mx[nei_index][index] = 1
+        with open(config.adj_path, 'rb') as f:
+            pickle_data = pickle.load(f, encoding="latin1")
+        adj_mx = pickle_data[2]
 
         # adj_mx = self.data_feature.get('adj_mx')
         l_tilde = scaled_laplacian(adj_mx)
