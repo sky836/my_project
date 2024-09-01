@@ -34,11 +34,11 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Taformer')
 
     # basic config
-    parser.add_argument('--task_name', type=str, required=False, default='stTrans',
+    parser.add_argument('--task_name', type=str, required=False, default='GWNET',
                         help='task name, options:[forcast, STEP, timeLinear, GWNET, Pretrain, STAEformer, stTrans, '
                              'stTrans_mae, Pretrain_class, STWave]')
     parser.add_argument('--is_training', type=int, required=False, default=1, help='train or test')
-    parser.add_argument('--model', type=str, required=False, default='DCRNN',
+    parser.add_argument('--model', type=str, required=False, default='STemGNN',
                         help='model name, options: [Taformer, STEP, timeLinear, GWNET, Pretrain_class, HI, LSTM, ASTGCN'
                              'Pretrain, VanillaTransformer, SingleNodeGWNET, STAEformer, stTrans, timeModel, '
                              'stTrans_mae, STemGNN, STID, STWave, DCRNN]')
