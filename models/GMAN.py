@@ -1,398 +1,375 @@
-from logging import getLogger
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
-# from libcity.model import loss
-from models.abstract_traffic_state_model import AbstractTrafficStateModel
+import math
 
 
-class FC(nn.Module):  # is_training: self.training
-    def __init__(self, input_dims, units, activations, bn, bn_decay, device, use_bias=True):
-        super(FC, self).__init__()
-        self.input_dims = input_dims
-        self.units = units
-        self.activations = activations
-        self.bn = bn
-        self.bn_decay = bn_decay
-        self.device = device
-        self.use_bias = use_bias
-        self.layers = self._init_layers()
+class conv2d_(nn.Module):
+    def __init__(self, input_dims, output_dims, kernel_size, stride=(1, 1),
+                 padding='SAME', use_bias=True, activation=F.relu,
+                 bn_decay=None):
+        super(conv2d_, self).__init__()
+        self.activation = activation
+        if padding == 'SAME':
+            self.padding_size = math.ceil(kernel_size)
+        else:
+            self.padding_size = [0, 0]
+        self.conv = nn.Conv2d(input_dims, output_dims, kernel_size, stride=stride,
+                              padding=0, bias=use_bias)
+        self.batch_norm = nn.BatchNorm2d(output_dims, momentum=bn_decay)
+        torch.nn.init.xavier_uniform_(self.conv.weight)
 
-    def _init_layers(self):
-        ret = nn.Sequential()
-        units, activations = self.units, self.activations
-        if isinstance(units, int):
-            units, activations = [units], [activations]
-        elif isinstance(self.units, tuple):
-            units, activations = list(units), list(activations)
-        assert type(units) == list
-        index = 1
-        input_dims = self.input_dims
-        for num_unit, activation in zip(units, activations):
-            if self.use_bias:
-                basic_conv2d = nn.Conv2d(input_dims, num_unit, (1, 1), stride=1, padding=0, bias=True)
-                nn.init.constant_(basic_conv2d.bias, 0)
-            else:
-                basic_conv2d = nn.Conv2d(input_dims, num_unit, (1, 1), stride=1, padding=0, bias=False)
-            nn.init.xavier_normal_(basic_conv2d.weight)
-            ret.add_module('conv2d' + str(index), basic_conv2d)
-            if activation is not None:
-                if self.bn:
-                    decay = self.bn_decay if self.bn_decay is not None else 0.1
-                    basic_batch_norm = nn.BatchNorm2d(num_unit, eps=1e-3, momentum=decay)
-                    ret.add_module('batch_norm' + str(index), basic_batch_norm)
-                ret.add_module('activation' + str(index), activation())
-            input_dims = num_unit
-            index += 1
-        return ret
+        if use_bias:
+            torch.nn.init.zeros_(self.conv.bias)
+
 
     def forward(self, x):
-        # x: (N, H, W, C)
-        x = x.transpose(1, 3).transpose(2, 3)  # x: (N, C, H, W)
-        x = self.layers(x)
-        x = x.transpose(2, 3).transpose(1, 3)  # x: (N, H, W, C)
-        return x
+        x = x.permute(0, 3, 2, 1)
+        x = F.pad(x, ([self.padding_size[1], self.padding_size[1], self.padding_size[0], self.padding_size[0]]))
+        x = self.conv(x)
+        x = self.batch_norm(x)
+        if self.activation is not None:
+            x = F.relu_(x)
+        return x.permute(0, 3, 2, 1)
 
 
-class SpatialAttention(nn.Module):
-    def __init__(self, K, D, bn, bn_decay, device):
-        super(SpatialAttention, self).__init__()
-        self.K = K
-        self.D = D
-        self.d = self.D / self.K
-        self.bn = bn
-        self.bn_decay = bn_decay
-        self.device = device
-        self.input_query_fc = FC(input_dims=2 * self.D, units=self.D, activations=nn.ReLU,
-                                 bn=self.bn, bn_decay=self.bn_decay, device=self.device)
-        self.input_key_fc = FC(input_dims=2 * self.D, units=self.D, activations=nn.ReLU,
-                               bn=self.bn, bn_decay=self.bn_decay, device=self.device)
-        self.input_value_fc = FC(input_dims=2 * self.D, units=self.D, activations=nn.ReLU,
-                                 bn=self.bn, bn_decay=self.bn_decay, device=self.device)
-        self.output_fc = FC(input_dims=self.D, units=[self.D, self.D], activations=[nn.ReLU, None],
-                            bn=self.bn, bn_decay=self.bn_decay, device=self.device)
+class FC(nn.Module):
+    def __init__(self, input_dims, units, activations, bn_decay, use_bias=True):
+        super(FC, self).__init__()
+        if isinstance(units, int):
+            units = [units]
+            input_dims = [input_dims]
+            activations = [activations]
+        elif isinstance(units, tuple):
+            units = list(units)
+            input_dims = list(input_dims)
+            activations = list(activations)
+        assert type(units) == list
+        self.convs = nn.ModuleList([conv2d_(
+            input_dims=input_dim, output_dims=num_unit, kernel_size=[1, 1], stride=[1, 1],
+            padding='VALID', use_bias=use_bias, activation=activation,
+            bn_decay=bn_decay) for input_dim, num_unit, activation in
+            zip(input_dims, units, activations)])
 
-    def forward(self, x, ste):
-        '''
-        spatial attention mechanism
-        x:      (batch_size, num_step, num_nodes, D)
-        ste:    (batch_size, num_step, num_nodes, D)
-        return: (batch_size, num_step, num_nodes, D)
-        '''
-        x = torch.cat((x, ste), dim=-1)
-        # (batch_size, num_step, num_nodes, D)
-        query = self.input_query_fc(x)
-        key = self.input_key_fc(x)
-        value = self.input_value_fc(x)
-        # (K*batch_size, num_step, num_nodes, d)
-        query = torch.cat(torch.split(query, query.size(-1) // self.K, dim=-1), dim=0)
-        key = torch.cat(torch.split(key, key.size(-1) // self.K, dim=-1), dim=0)
-        value = torch.cat(torch.split(value, value.size(-1) // self.K, dim=-1), dim=0)
-
-        attention = torch.matmul(query, key.transpose(2, 3))
-        attention /= self.d ** 0.5
-        attention = torch.softmax(attention, dim=-1)  # (K*batch_size, num_step, num_nodes, num_nodes)
-
-        x = torch.matmul(attention, value)
-        x = torch.cat(torch.split(x, x.size(0) // self.K, dim=0), dim=-1)
-        x = self.output_fc(x)  # (batch_size, num_steps, num_nodes, D)
-        return x
-
-
-class TemporalAttention(nn.Module):
-    def __init__(self, K, D, bn, bn_decay, device, mask=True):
-        super(TemporalAttention, self).__init__()
-        self.K = K
-        self.D = D
-        self.d = self.D / self.K
-        self.bn = bn
-        self.bn_decay = bn_decay
-        self.device = device
-        self.mask = mask
-        self.input_query_fc = FC(input_dims=2 * self.D, units=self.D, activations=nn.ReLU,
-                                 bn=self.bn, bn_decay=self.bn_decay, device=self.device)
-        self.input_key_fc = FC(input_dims=2 * self.D, units=self.D, activations=nn.ReLU,
-                               bn=self.bn, bn_decay=self.bn_decay, device=self.device)
-        self.input_value_fc = FC(input_dims=2 * self.D, units=self.D, activations=nn.ReLU,
-                                 bn=self.bn, bn_decay=self.bn_decay, device=self.device)
-        self.output_fc = FC(input_dims=self.D, units=[self.D, self.D], activations=[nn.ReLU, None],
-                            bn=self.bn, bn_decay=self.bn_decay, device=self.device)
-
-    def forward(self, x, ste):
-        '''
-        temporal attention mechanism
-        x:      (batch_size, num_step, num_nodes, D)
-        ste:    (batch_size, num_step, num_nodes, D)
-        return: (batch_size, num_step, num_nodes, D)
-        '''
-        x = torch.cat((x, ste), dim=-1)
-        # (batch_size, num_step, num_nodes, D)
-        query = self.input_query_fc(x)
-        key = self.input_key_fc(x)
-        value = self.input_value_fc(x)
-        # (K*batch_size, num_step, num_nodes, d)
-        query = torch.cat(torch.split(query, query.size(-1) // self.K, dim=-1), dim=0)
-        key = torch.cat(torch.split(key, key.size(-1) // self.K, dim=-1), dim=0)
-        value = torch.cat(torch.split(value, value.size(-1) // self.K, dim=-1), dim=0)
-        # query: (K*batch_size, num_nodes, num_step, d)
-        # key:   (K*batch_size, num_nodes, d, num_step)
-        # value: (K*batch_size, num_nodes, num_step, d)
-        query = query.transpose(1, 2)
-        key = key.transpose(1, 2).transpose(2, 3)
-        value = value.transpose(1, 2)
-
-        attention = torch.matmul(query, key)
-        attention /= self.d ** 0.5  # (K*batch_size, num_nodes, num_step, num_step)
-        if self.mask:
-            batch_size = x.size(0)
-            num_step = x.size(1)
-            num_nodes = x.size(2)
-            mask = torch.ones((num_step, num_step), device=self.device)
-            mask = torch.tril(mask)
-            mask = mask.unsqueeze(0).unsqueeze(0)
-            mask = mask.repeat(self.K * batch_size, num_nodes, 1, 1)
-            mask = mask.bool().int()
-            mask_rev = -(mask - 1)
-            attention = mask * attention + mask_rev * torch.full(attention.shape, -2 ** 15 + 1, device=self.device)
-        attention = torch.softmax(attention, dim=-1)
-
-        x = torch.matmul(attention, value)
-        x = x.transpose(1, 2)
-        x = torch.cat(torch.split(x, x.size(0) // self.K, dim=0), dim=-1)
-        x = self.output_fc(x)  # (batch_size, output_length, num_nodes, D)
-        return x
-
-
-class GatedFusion(nn.Module):
-    def __init__(self, D, bn, bn_decay, device):
-        super(GatedFusion, self).__init__()
-        self.D = D
-        self.bn = bn
-        self.bn_decay = bn_decay
-        self.device = device
-        self.HS_fc = FC(input_dims=self.D, units=self.D, activations=None,
-                        bn=self.bn, bn_decay=self.bn_decay, device=self.device, use_bias=False)
-        self.HT_fc = FC(input_dims=self.D, units=self.D, activations=None,
-                        bn=self.bn, bn_decay=self.bn_decay, device=self.device, use_bias=True)
-        self.output_fc = FC(input_dims=self.D, units=[self.D, self.D], activations=[nn.ReLU, None],
-                            bn=self.bn, bn_decay=self.bn_decay, device=self.device)
-
-    def forward(self, HS, HT):
-        '''
-        gated fusion
-        HS:     (batch_size, num_step, num_nodes, D)
-        HT:     (batch_size, num_step, num_nodes, D)
-        return: (batch_size, num_step, num_nodes, D)
-        '''
-        XS = self.HS_fc(HS)
-        XT = self.HT_fc(HT)
-        z = torch.sigmoid(torch.add(XS, XT))
-        H = torch.add(torch.multiply(z, HS), torch.multiply(1 - z, HT))
-        H = self.output_fc(H)
-        return H
-
-
-class STAttBlock(nn.Module):
-    def __init__(self, K, D, bn, bn_decay, device, mask=True):
-        super(STAttBlock, self).__init__()
-        self.K = K
-        self.D = D
-        self.d = self.D / self.K
-        self.bn = bn
-        self.bn_decay = bn_decay
-        self.device = device
-        self.mask = mask
-        self.sp_att = SpatialAttention(K=self.K, D=self.D, bn=self.bn, bn_decay=self.bn_decay, device=self.device)
-        self.temp_att = TemporalAttention(K=self.K, D=self.D, bn=self.bn, bn_decay=self.bn_decay, device=self.device)
-        self.gated_fusion = GatedFusion(D=self.D, bn=self.bn, bn_decay=self.bn_decay, device=self.device)
-
-    def forward(self, x, ste):
-        HS = self.sp_att(x, ste)
-        HT = self.temp_att(x, ste)
-        H = self.gated_fusion(HS, HT)
-        return torch.add(x, H)
-
-
-class TransformAttention(nn.Module):
-    def __init__(self, K, D, bn, bn_decay, device):
-        super(TransformAttention, self).__init__()
-        self.K = K
-        self.D = D
-        self.d = self.D / self.K
-        self.bn = bn
-        self.bn_decay = bn_decay
-        self.device = device
-        self.input_query_fc = FC(input_dims=self.D, units=self.D, activations=nn.ReLU,
-                                 bn=self.bn, bn_decay=self.bn_decay, device=self.device)
-        self.input_key_fc = FC(input_dims=self.D, units=self.D, activations=nn.ReLU,
-                               bn=self.bn, bn_decay=self.bn_decay, device=self.device)
-        self.input_value_fc = FC(input_dims=self.D, units=self.D, activations=nn.ReLU,
-                                 bn=self.bn, bn_decay=self.bn_decay, device=self.device)
-        self.output_fc = FC(input_dims=self.D, units=[self.D, self.D], activations=[nn.ReLU, None],
-                            bn=self.bn, bn_decay=self.bn_decay, device=self.device)
-
-    def forward(self, x, ste1, ste2):
-        '''
-        transform attention mechanism
-        x:      (batch_size, input_length, num_nodes, D)
-        ste_1:  (batch_size, input_length, num_nodes, D)
-        ste_2:  (batch_size, output_length, num_nodes, D)
-        return: (batch_size, output_length, num_nodes, D)
-        '''
-        # query: (batch_size, output_length, num_nodes, D)
-        # key:   (batch_size, input_length, num_nodes, D)
-        # value: (batch_size, input_length, num_nodes, D)
-        query = self.input_query_fc(ste2)
-        key = self.input_key_fc(ste1)
-        value = self.input_value_fc(x)
-        # query: (K*batch_size, output_length, num_nodes, d)
-        # key:   (K*batch_size, input_length, num_nodes, d)
-        # value: (K*batch_size, input_length, num_nodes, d)
-        query = torch.cat(torch.split(query, query.size(-1) // self.K, dim=-1), dim=0)
-        key = torch.cat(torch.split(key, key.size(-1) // self.K, dim=-1), dim=0)
-        value = torch.cat(torch.split(value, value.size(-1) // self.K, dim=-1), dim=0)
-        # query: (K*batch_size, num_nodes, output_length, d)
-        # key:   (K*batch_size, num_nodes, d, input_length)
-        # value: (K*batch_size, num_nodes, input_length, d)
-        query = query.transpose(1, 2)
-        key = key.transpose(1, 2).transpose(2, 3)
-        value = value.transpose(1, 2)
-
-        attention = torch.matmul(query, key)
-        attention /= self.d ** 0.5
-        attention = torch.softmax(attention, dim=-1)  # (K*batch_size, num_nodes, output_length, input_length)
-
-        x = torch.matmul(attention, value)
-        x = x.transpose(1, 2)
-        x = torch.cat(torch.split(x, x.size(0) // self.K, dim=0), dim=-1)
-        x = self.output_fc(x)  # (batch_size, output_length, num_nodes, D)
+    def forward(self, x):
+        for conv in self.convs:
+            x = conv(x)
         return x
 
 
 class STEmbedding(nn.Module):
-    def __init__(self, T, D, bn, bn_decay, add_day_in_week, device):
+    '''
+    spatio-temporal embedding
+    SE:     [num_vertex, D]
+    TE:     [batch_size, num_his + num_pred, 2] (dayofweek, timeofday)
+    T:      num of time steps in one day
+    D:      output dims
+    retrun: [batch_size, num_his + num_pred, num_vertex, D]
+    '''
+
+    def __init__(self, D, bn_decay):
         super(STEmbedding, self).__init__()
-        self.T = T
-        self.D = D
-        self.bn = bn
-        self.bn_decay = bn_decay
-        self.device = device
-        self.SE_fc = FC(input_dims=self.D, units=[self.D, self.D], activations=[nn.ReLU, None],
-                        bn=self.bn, bn_decay=self.bn_decay, device=self.device)
-        self.TE_fc = FC(input_dims=7 + self.T if add_day_in_week else self.T, units=[self.D, self.D],
-                        activations=[nn.ReLU, None], bn=self.bn, bn_decay=self.bn_decay, device=self.device)
+        self.FC_se = FC(
+            input_dims=[D, D], units=[D, D], activations=[F.relu, None],
+            bn_decay=bn_decay)
 
-    def forward(self, SE, TE):
-        '''
-        spatio-temporal embedding
-        SE:     (num_nodes, D)
-        TE:     (batch_size, input_length+output_length, 7+T or T)
-        retrun: (batch_size, input_length+output_length, num_nodes, D)
-        '''
+        self.FC_te = FC(
+            input_dims=[295, D], units=[D, D], activations=[F.relu, None],
+            bn_decay=bn_decay)  # input_dims = time step per day + days per week=288+7=295
+
+    def forward(self, SE, TE, T=288):
+        # spatial embedding
         SE = SE.unsqueeze(0).unsqueeze(0)
-        SE = self.SE_fc(SE)
-        TE = self.TE_fc(TE)
-        return torch.add(SE, TE)
+        SE = self.FC_se(SE)
+        # temporal embedding
+        dayofweek = torch.empty(TE.shape[0], TE.shape[1], 7)
+        timeofday = torch.empty(TE.shape[0], TE.shape[1], T)
+        for i in range(TE.shape[0]):
+            dayofweek[i] = F.one_hot(TE[..., 1][i].to(torch.int64) % 7, 7)
+        for j in range(TE.shape[0]):
+            timeofday[j] = F.one_hot(TE[..., 0][j].to(torch.int64) % 288, T)
+        TE = torch.cat((dayofweek, timeofday), dim=-1).to(SE.device)
+        TE = TE.unsqueeze(dim=2)
+        TE = self.FC_te(TE)
+        del dayofweek, timeofday
+        return SE + TE
 
 
-class Model(AbstractTrafficStateModel):
-    def __init__(self, config, data_feature):
-        super().__init__(config, data_feature)
-        # get data feature
-        self.adj_mx = self.data_feature.get('adj_mx')
-        self.SE = self.data_feature.get('SE')
-        self.num_nodes = self.data_feature.get('num_nodes', 1)
-        self.feature_dim = self.data_feature.get('feature_dim', 1)
-        self.output_dim = self.data_feature.get('output_dim', 1)
-        self._scaler = self.data_feature.get('scaler')
-        self.D = self.data_feature.get('D', 64)  # num_nodes
-        self.T = self.data_feature.get('points_per_hour', 12) * 24  # points_per_data
-        self.add_day_in_week = self.data_feature.get('add_day_in_week', False)
-        # init logger
-        self._logger = getLogger()
-        # get model config
-        self.input_window = config.get('input_window', 12)  # input_length
-        self.output_window = config.get('output_window', 12)  # output_length
-        self.L = config.get('L', 5)
-        self.K = config.get('K', 8)
-        self.device = config.get('device', torch.device('cpu'))
-        self.bn = True
-        self.bn_decay = 0.1
-        # define the model structure
-        self.input_fc = FC(input_dims=self.output_dim, units=[self.D, self.D], activations=[nn.ReLU, None],
-                           bn=self.bn, bn_decay=self.bn_decay, device=self.device)
-        self.st_embedding = STEmbedding(T=self.T, D=self.D, bn=self.bn, bn_decay=self.bn_decay,
-                                        add_day_in_week=self.add_day_in_week, device=self.device)
-        self.encoder = nn.ModuleList()
-        for _ in range(self.L):
-            self.encoder.append(STAttBlock(K=self.K, D=self.D, bn=self.bn, bn_decay=self.bn_decay, device=self.device))
-        # self.encoder = STAttBlock(K=self.K, D=self.D, bn=self.bn, bn_decay=self.bn_decay,
-        #                           device=self.device)
-        self.trans_att = TransformAttention(K=self.K, D=self.D, bn=self.bn, bn_decay=self.bn_decay, device=self.device)
-        self.decoder = nn.ModuleList()
-        for _ in range(self.L):
-            self.decoder.append(STAttBlock(K=self.K, D=self.D, bn=self.bn, bn_decay=self.bn_decay, device=self.device))
-        # self.decoder = STAttBlock(K=self.K, D=self.D, bn=self.bn, bn_decay=self.bn_decay,
-        #                           device=self.device)
-        self.output_fc_1 = FC(input_dims=self.D, units=[self.D], activations=[nn.ReLU],
-                              bn=self.bn, bn_decay=self.bn_decay, device=self.device, use_bias=True)
-        self.output_fc_2 = FC(input_dims=self.D, units=[self.output_dim], activations=[None],
-                              bn=self.bn, bn_decay=self.bn_decay, device=self.device, use_bias=True)
+class spatialAttention(nn.Module):
+    '''
+    spatial attention mechanism
+    X:      [batch_size, num_step, num_vertex, D]
+    STE:    [batch_size, num_step, num_vertex, D]
+    K:      number of attention heads
+    d:      dimension of each attention outputs
+    return: [batch_size, num_step, num_vertex, D]
+    '''
 
-    def forward(self, batch):
-        # ret: (batch_size, output_length, num_nodes, output_dim)
-        # handle data
-        x_all = batch['X']  # (batch_size, input_length, num_nodes, feature_dim)
-        y_all = batch['y']  # (batch_size, out_length, num_nodes, feature_dim)
-        index = -8 if self.add_day_in_week else -1
-        x = x_all[:, :, :, 0:index]  # (batch_size, input_length, num_nodes, output_dim)
-        SE = torch.from_numpy(self.SE).to(device=self.device)
-        TE = torch.cat((x_all[:, :, :, index:], y_all[:, :, :, index:]), dim=1)
-        _timeofday = TE[:, :, :, 0:1]
-        _timeofday = torch.round(_timeofday * self.T)
-        _timeofday = _timeofday.to(int)  # (batch_size, input_length+output_length, num_nodes, 1)
-        _timeofday = _timeofday[:, :, 0, :]  # (batch_size, input_length+output_length, 1)
-        timeofday = torch.zeros((_timeofday.size(0), _timeofday.size(1), self.T), device=self.device).long()
-        timeofday.scatter_(dim=2, index=_timeofday.long(), src=torch.ones(timeofday.shape, device=self.device).long())
-        if self.add_day_in_week:
-            _dayofweek = TE[:, :, :, 1:]
-            _dayofweek = _dayofweek.to(int)  # (batch_size, input_length+output_length, num_nodes, 7)
-            dayofweek = _dayofweek[:, :, 0, :]  # (batch_size, input_length+output_length, 7)
-            TE = torch.cat((dayofweek, timeofday), dim=2).type(torch.FloatTensor)
-        else:
-            TE = timeofday.type(torch.FloatTensor)
-        TE = TE.unsqueeze(2).to(device=self.device)  # (batch_size, input_length+output_length, 1, 7+T or T)
+    def __init__(self, K, d, bn_decay):
+        super(spatialAttention, self).__init__()
+        D = K * d
+        self.d = d
+        self.K = K
+        self.FC_q = FC(input_dims=2 * D, units=D, activations=F.relu,
+                       bn_decay=bn_decay)
+        self.FC_k = FC(input_dims=2 * D, units=D, activations=F.relu,
+                       bn_decay=bn_decay)
+        self.FC_v = FC(input_dims=2 * D, units=D, activations=F.relu,
+                       bn_decay=bn_decay)
+        self.FC = FC(input_dims=D, units=D, activations=F.relu,
+                     bn_decay=bn_decay)
 
-        # create network
+    def forward(self, X, STE):
+        batch_size = X.shape[0]
+        X = torch.cat((X, STE), dim=-1)
+        # [batch_size, num_step, num_vertex, K * d]
+        query = self.FC_q(X)
+        key = self.FC_k(X)
+        value = self.FC_v(X)
+        # [K * batch_size, num_step, num_vertex, d]
+        query = torch.cat(torch.split(query, self.K, dim=-1), dim=0)
+        key = torch.cat(torch.split(key, self.K, dim=-1), dim=0)
+        value = torch.cat(torch.split(value, self.K, dim=-1), dim=0)
+        # [K * batch_size, num_step, num_vertex, num_vertex]
+        attention = torch.matmul(query, key.transpose(2, 3))
+        attention /= (self.d ** 0.5)
+        attention = F.softmax(attention, dim=-1)
+        # [batch_size, num_step, num_vertex, D]
+        X = torch.matmul(attention, value)
+        X = torch.cat(torch.split(X, batch_size, dim=0), dim=-1)  # orginal K, change to batch_size
+        X = self.FC(X)
+        del query, key, value, attention
+        return X
+
+
+class temporalAttention(nn.Module):
+    '''
+    temporal attention mechanism
+    X:      [batch_size, num_step, num_vertex, D]
+    STE:    [batch_size, num_step, num_vertex, D]
+    K:      number of attention heads
+    d:      dimension of each attention outputs
+    return: [batch_size, num_step, num_vertex, D]
+    '''
+
+    def __init__(self, K, d, bn_decay, mask=True):
+        super(temporalAttention, self).__init__()
+        D = K * d
+        self.d = d
+        self.K = K
+        self.mask = mask
+        self.FC_q = FC(input_dims=2 * D, units=D, activations=F.relu,
+                       bn_decay=bn_decay)
+        self.FC_k = FC(input_dims=2 * D, units=D, activations=F.relu,
+                       bn_decay=bn_decay)
+        self.FC_v = FC(input_dims=2 * D, units=D, activations=F.relu,
+                       bn_decay=bn_decay)
+        self.FC = FC(input_dims=D, units=D, activations=F.relu,
+                     bn_decay=bn_decay)
+
+    def forward(self, X, STE):
+        batch_size_ = X.shape[0]
+        X = torch.cat((X, STE), dim=-1)
+        # [batch_size, num_step, num_vertex, K * d]
+        query = self.FC_q(X)
+        key = self.FC_k(X)
+        value = self.FC_v(X)
+        # [K * batch_size, num_step, num_vertex, d]
+        query = torch.cat(torch.split(query, self.K, dim=-1), dim=0)
+        key = torch.cat(torch.split(key, self.K, dim=-1), dim=0)
+        value = torch.cat(torch.split(value, self.K, dim=-1), dim=0)
+        # query: [K * batch_size, num_vertex, num_step, d]
+        # key:   [K * batch_size, num_vertex, d, num_step]
+        # value: [K * batch_size, num_vertex, num_step, d]
+        query = query.permute(0, 2, 1, 3)
+        key = key.permute(0, 2, 3, 1)
+        value = value.permute(0, 2, 1, 3)
+        # [K * batch_size, num_vertex, num_step, num_step]
+        attention = torch.matmul(query, key)
+        attention /= (self.d ** 0.5)
+        # mask attention score
+        if self.mask:
+            batch_size = X.shape[0]
+            num_step = X.shape[1]
+            num_vertex = X.shape[2]
+            mask = torch.ones(num_step, num_step)
+            mask = torch.tril(mask)
+            mask = torch.unsqueeze(torch.unsqueeze(mask, dim=0), dim=0)
+            mask = mask.repeat(self.K * batch_size, num_vertex, 1, 1)
+            mask = mask.to(torch.bool)
+            attention = torch.where(mask, attention, -2 ** 15 + 1)
+        # softmax
+        attention = F.softmax(attention, dim=-1)
+        # [batch_size, num_step, num_vertex, D]
+        X = torch.matmul(attention, value)
+        X = X.permute(0, 2, 1, 3)
+        X = torch.cat(torch.split(X, batch_size_, dim=0), dim=-1)  # orginal K, change to batch_size
+        X = self.FC(X)
+        del query, key, value, attention
+        return X
+
+
+class gatedFusion(nn.Module):
+    '''
+    gated fusion
+    HS:     [batch_size, num_step, num_vertex, D]
+    HT:     [batch_size, num_step, num_vertex, D]
+    D:      output dims
+    return: [batch_size, num_step, num_vertex, D]
+    '''
+
+    def __init__(self, D, bn_decay):
+        super(gatedFusion, self).__init__()
+        self.FC_xs = FC(input_dims=D, units=D, activations=None,
+                        bn_decay=bn_decay, use_bias=False)
+        self.FC_xt = FC(input_dims=D, units=D, activations=None,
+                        bn_decay=bn_decay, use_bias=True)
+        self.FC_h = FC(input_dims=[D, D], units=[D, D], activations=[F.relu, None],
+                       bn_decay=bn_decay)
+
+    def forward(self, HS, HT):
+        XS = self.FC_xs(HS)
+        XT = self.FC_xt(HT)
+        z = torch.sigmoid(torch.add(XS, XT))
+        H = torch.add(torch.mul(z, HS), torch.mul(1 - z, HT))
+        H = self.FC_h(H)
+        del XS, XT, z
+        return H
+
+
+class STAttBlock(nn.Module):
+    def __init__(self, K, d, bn_decay, mask=False):
+        super(STAttBlock, self).__init__()
+        self.spatialAttention = spatialAttention(K, d, bn_decay)
+        self.temporalAttention = temporalAttention(K, d, bn_decay, mask=mask)
+        self.gatedFusion = gatedFusion(K * d, bn_decay)
+
+    def forward(self, X, STE):
+        HS = self.spatialAttention(X, STE)
+        HT = self.temporalAttention(X, STE)
+        H = self.gatedFusion(HS, HT)
+        del HS, HT
+        return torch.add(X, H)
+
+
+class transformAttention(nn.Module):
+    '''
+    transform attention mechanism
+    X:        [batch_size, num_his, num_vertex, D]
+    STE_his:  [batch_size, num_his, num_vertex, D]
+    STE_pred: [batch_size, num_pred, num_vertex, D]
+    K:        number of attention heads
+    d:        dimension of each attention outputs
+    return:   [batch_size, num_pred, num_vertex, D]
+    '''
+
+    def __init__(self, K, d, bn_decay):
+        super(transformAttention, self).__init__()
+        D = K * d
+        self.K = K
+        self.d = d
+        self.FC_q = FC(input_dims=D, units=D, activations=F.relu,
+                       bn_decay=bn_decay)
+        self.FC_k = FC(input_dims=D, units=D, activations=F.relu,
+                       bn_decay=bn_decay)
+        self.FC_v = FC(input_dims=D, units=D, activations=F.relu,
+                       bn_decay=bn_decay)
+        self.FC = FC(input_dims=D, units=D, activations=F.relu,
+                     bn_decay=bn_decay)
+
+    def forward(self, X, STE_his, STE_pred):
+        batch_size = X.shape[0]
+        # [batch_size, num_step, num_vertex, K * d]
+        query = self.FC_q(STE_pred)
+        key = self.FC_k(STE_his)
+        value = self.FC_v(X)
+        # [K * batch_size, num_step, num_vertex, d]
+        query = torch.cat(torch.split(query, self.K, dim=-1), dim=0)
+        key = torch.cat(torch.split(key, self.K, dim=-1), dim=0)
+        value = torch.cat(torch.split(value, self.K, dim=-1), dim=0)
+        # query: [K * batch_size, num_vertex, num_pred, d]
+        # key:   [K * batch_size, num_vertex, d, num_his]
+        # value: [K * batch_size, num_vertex, num_his, d]
+        query = query.permute(0, 2, 1, 3)
+        key = key.permute(0, 2, 3, 1)
+        value = value.permute(0, 2, 1, 3)
+        # [K * batch_size, num_vertex, num_pred, num_his]
+        attention = torch.matmul(query, key)
+        attention /= (self.d ** 0.5)
+        attention = F.softmax(attention, dim=-1)
+        # [batch_size, num_pred, num_vertex, D]
+        X = torch.matmul(attention, value)
+        X = X.permute(0, 2, 1, 3)
+        X = torch.cat(torch.split(X, batch_size, dim=0), dim=-1)
+        X = self.FC(X)
+        del query, key, value, attention
+        return X
+
+
+class Model(nn.Module):
+    '''
+    GMAN
+        X：       [batch_size, num_his, num_vertx]
+        TE：      [batch_size, num_his + num_pred, 2] (time-of-day, day-of-week)
+        SE：      [num_vertex, K * d]
+        num_his： number of history steps
+        num_pred：number of prediction steps
+        T：       one day is divided into T steps
+        L：       number of STAtt blocks in the encoder/decoder
+        K：       number of attention heads
+        d：       dimension of each attention head outputs
+        return：  [batch_size, num_pred, num_vertex]
+    '''
+
+    def __init__(self, args, bn_decay=0.1):
+        super().__init__()
+        # spatial embedding
+        with open(r'/kaggle/input/pems03se/pems03se.txt', mode='r') as f:
+            lines = f.readlines()
+            temp = lines[0].split(' ')
+            num_vertex, dims = int(temp[0]), int(temp[1])
+            SE = torch.zeros((num_vertex, dims), dtype=torch.float32)
+            for line in lines[1:]:
+                temp = line.split(' ')
+                index = int(temp[0])
+                SE[index] = torch.tensor([float(ch) for ch in temp[1:]])
+        L = 1
+        K = 8
+        d = 8
+        D = K * d
+        self.num_his = args.seq_len
+        self.SE = SE
+        self.STEmbedding = STEmbedding(D, bn_decay)
+        self.STAttBlock_1 = nn.ModuleList([STAttBlock(K, d, bn_decay) for _ in range(L)])
+        self.STAttBlock_2 = nn.ModuleList([STAttBlock(K, d, bn_decay) for _ in range(L)])
+        self.transformAttention = transformAttention(K, d, bn_decay)
+        self.FC_1 = FC(input_dims=[1, D], units=[D, D], activations=[F.relu, None],
+                       bn_decay=bn_decay)
+        self.FC_2 = FC(input_dims=[D, D], units=[D, 1], activations=[F.relu, None],
+                       bn_decay=bn_decay)
+        self.steps_per_day = args.steps_per_day
+
+    def forward(self, X, Y):
         # input
-        x = self.input_fc(x)  # (batch_size, input_length, num_nodes, D)
+        TE = torch.cat([X[:, :, 0, 1:], Y[:, :, 0, 1:]], dim=1)
+        TE[..., 0] = TE[..., 0] * self.steps_per_day
+        TE[..., 1] = TE[..., 1]
+        X = torch.unsqueeze(X[..., 0], -1)
+        X = self.FC_1(X)
+        self.SE = self.SE.to(X.device)
         # STE
-        ste = self.st_embedding(SE, TE)
-        ste_p = ste[:, :self.input_window]  # (batch_size, input_length, num_nodes, D)
-        ste_q = ste[:, self.input_window:]  # (batch_size, output_length, num_nodes, D)
+        STE = self.STEmbedding(self.SE, TE)
+        STE_his = STE[:, :self.num_his]
+        STE_pred = STE[:, self.num_his:]
         # encoder
-        for encoder_layer in self.encoder:
-            x = encoder_layer(x, ste_p)
+        for net in self.STAttBlock_1:
+            X = net(X, STE_his)
         # transAtt
-        x = self.trans_att(x, ste_p, ste_q)  # (batch_size, output_length, num_nodes, D)
+        X = self.transformAttention(X, STE_his, STE_pred)
         # decoder
-        for decoder_layer in self.decoder:
-            x = decoder_layer(x, ste_q)
+        for net in self.STAttBlock_2:
+            X = net(X, STE_pred)
         # output
-        x = F.dropout(x, p=0.1, training=self.training)
-        x = self.output_fc_1(x)
-        x = F.dropout(x, p=0.1, training=self.training)
-        x = self.output_fc_2(x)  # (batch_size, output_length, num_nodes, output_dim)
-        return x
-
-    def calculate_loss(self, batch):
-        y_true = batch['y']  # (batch_size, output_length, num_nodes, feature_dim)
-        y_predicted = self.predict(batch)  # (batch_size, output_length, num_nodes, output_dim)
-        y_true = self._scaler.inverse_transform(y_true[..., :self.output_dim])
-        y_predicted = self._scaler.inverse_transform(y_predicted[..., :self.output_dim])
-        return loss.masked_mse_torch(y_predicted, y_true, 0.0)
-
-    def predict(self, batch):
-        return self.forward(batch)  # (batch_size, output_length, num_nodes, output_dim)
+        X = self.FC_2(X)
+        del STE, STE_his, STE_pred
+        return X
