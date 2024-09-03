@@ -45,7 +45,7 @@ if __name__ == '__main__':
 
     # path to modify
     # 1. data and adj
-    parser.add_argument('--adj_path', type=str, default=r'datasets/PEMSBAY/adj_PEMS-BAY.pkl', help='path of the adjmx')
+    parser.add_argument('--adj_path', type=str, default=r'/kaggle/input/traffic-datasets/datasets/PEMSBAY/adj_PEMS-BAY.pkl', help='path of the adjmx')
     parser.add_argument('--root_path', type=str, default='/kaggle/input/traffic-datasets/datasets/', help='root path of the data file')
     parser.add_argument('--data_path', type=str, default='PEMS03/data.npz', help='data file')
     parser.add_argument('--data', type=str, required=False, default='PEMS03', help='dataset type, [Pretrain_Forecast, Pretrain_Class]')
