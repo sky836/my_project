@@ -27,7 +27,7 @@ def data_provider(args, flag):
         # drop_last 是 DataLoader 类的一个参数，用于指定在数据集大小
         # 不能被批次大小整除时是否**丢弃最后一个小于批次大小的 batch**。
         drop_last = True
-        batch_size = 1  # bsz=1 for evaluation
+        batch_size = args.batch_size  # bsz=1 for evaluation
         freq = args.freq
     else:
         shuffle_flag = True
