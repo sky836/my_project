@@ -434,7 +434,7 @@ class Model(nn.Module):
         self.dow_embedding_dim = configs.dow_embedding_dim
         self.spatial_embedding_dim = configs.spatial_embedding_dim
         self.feed_forward_dim = configs.feed_forward_dim
-        self.pos_tdim = configs.tod_embedding_dim
+        self.pos_tdim = configs.pos_dim
         self.pos_sdim = configs.pos_dim
         self.time_dim = (configs.tod_embedding_dim + configs.dow_embedding_dim + self.pos_tdim)
         self.target_dim = (configs.input_embedding_dim + configs.spatial_embedding_dim + self.pos_sdim)
