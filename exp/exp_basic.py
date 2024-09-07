@@ -4,7 +4,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 
 from models import timeLinear, GWNET, taformerPredict, taformerPretrain, vanillaTransformer, singleNodeGWNET, \
     STAEformer, swin_transformer, st_transformer, timeModel, st_pretrain, stTrans_tmae, st_pretrainClass,\
-    HI, DCRNN, LSTM, STemGNN, STWave, ASTGCN, stid_arch, GMAN
+    HI, DCRNN, LSTM, STemGNN, STWave, ASTGCN, stid_arch, GMAN, RGDAN
 
 
 class Exp_Basic(object):
@@ -29,7 +29,8 @@ class Exp_Basic(object):
             'STWave': STWave,
             'ASTGCN': ASTGCN,
             'STID': stid_arch,
-            'GMAN': GMAN
+            'GMAN': GMAN,
+            'RGDAN': RGDAN
         }
         self.clip = self.args.clip
         self.device = self._acquire_device()

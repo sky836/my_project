@@ -26,14 +26,14 @@ class Exp_stTrans(Exp_Basic):
         super(Exp_stTrans, self).__init__(args)
 
     def _build_model(self):
-        # 读取邻接矩阵
-        with open(self.args.adj_path, 'rb') as f:
-            pickle_data = pickle.load(f, encoding="latin1")
-        adj_mx = pickle_data[2]
-        adj = [self.asym_adj(adj_mx), self.asym_adj(np.transpose(adj_mx))]
-        # num_nodes = len(pickle_data[0])
-        supports = [torch.tensor(i).to(self.device) for i in adj]
-        if self.args.model == 'DCRNN':
+        if self.args.model == 'DCRNN' or self.args.model == 'RGDAN':
+            # 读取邻接矩阵
+            with open(self.args.adj_path, 'rb') as f:
+                pickle_data = pickle.load(f, encoding="latin1")
+            adj_mx = pickle_data
+            adj = [self.asym_adj(adj_mx), self.asym_adj(np.transpose(adj_mx))]
+            # num_nodes = len(pickle_data[0])
+            supports = [torch.tensor(i).to(self.device) for i in adj]
             model = self.model_dict[self.args.model].Model(self.args, supports).float()
         # .float(): 将模型的参数和张量转换为浮点数类型
         else:
@@ -88,8 +88,8 @@ class Exp_stTrans(Exp_Basic):
                 batch_y = batch_y.float().to(self.device)
 
                 # encoder - decoder
-                # outputs, _ = self.model(batch_x, batch_y)
-                outputs= self.model(batch_x, batch_y)
+                outputs, _ = self.model(batch_x, batch_y)
+                # outputs= self.model(batch_x, batch_y)
 
                 y = batch_y[..., :self.args.output_dim]
                 if vali_data.scale and self.args.inverse:
@@ -210,8 +210,8 @@ class Exp_stTrans(Exp_Basic):
                 batch_x = batch_x.float().to(self.device)
                 batch_y = batch_y.float().to(self.device)
 
-                # outputs, time_pred = self.model(batch_x, batch_y)
-                outputs= self.model(batch_x, batch_y)
+                outputs, time_pred = self.model(batch_x, batch_y)
+                # outputs= self.model(batch_x, batch_y)
 
                 y = batch_y[..., :self.args.output_dim]
 
@@ -220,8 +220,8 @@ class Exp_stTrans(Exp_Basic):
                     outputs = train_data.inverse_transform(outputs.reshape(-1, n_nodes, n_feats)).reshape(batch_size,
                                                                                                  pred_len, n_nodes, n_feats)
 
-                # loss = criterion(outputs, y, 0.0) + criterion(time_pred, batch_y[:, :, 0, self.args.output_dim:])
-                loss = criterion(outputs, y, 0.0)
+                loss = criterion(outputs, y, 0.0) + criterion(time_pred, batch_y[:, :, 0, self.args.output_dim:])
+                # loss = criterion(outputs, y, 0.0)
                 train_loss.append(loss.item())
 
                 if (i + 1) % 100 == 0:

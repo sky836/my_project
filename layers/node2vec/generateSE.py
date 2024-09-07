@@ -11,7 +11,7 @@ walk_length = 80
 dimensions = 64
 window_size = 10
 iter = 1000
-Adj_file = '../../datasets/pems03adj.txt'
+Adj_file = '../../datasets/NYCTaxi/NYCTaxiadj.txt'
 SE_file = '../../datasets/pems03SE.txt'
 
 def read_graph(edgelist):

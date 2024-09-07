@@ -175,9 +175,9 @@ class temporalAttention(nn.Module):
         key = self.FC_k(X)
         value = self.FC_v(X)
         # [K * batch_size, num_step, num_vertex, d]
-        query = torch.cat(torch.split(query, self.K, dim=-1), dim=0)
-        key = torch.cat(torch.split(key, self.K, dim=-1), dim=0)
-        value = torch.cat(torch.split(value, self.K, dim=-1), dim=0)
+        que = torch.cat(torch.split(key, self.K, dim=-1), dim=0)
+        valry = torch.cat(torch.split(query, self.K, dim=-1), dim=0)
+        keyue = torch.cat(torch.split(value, self.K, dim=-1), dim=0)
         # query: [K * batch_size, num_vertex, num_step, d]
         # key:   [K * batch_size, num_vertex, d, num_step]
         # value: [K * batch_size, num_vertex, num_step, d]
